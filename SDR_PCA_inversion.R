@@ -56,13 +56,19 @@ chr=3
 my3pop_colo = c("FRA-VEY*" = "#fdae61",
                 "GBR-GRO*" = "#54aa47",
                 "SCO-HAR*" = "#2b83ba")
+tree.ids = c("FRA-VEY-1", "FRA-VEY-10", 
+             "SCO-HAR-1", "SCO-HAR-11", "SCO-HAR-2", 
+             "GBR-GRO-10", "GBR-GRO-11", "GBR-GRO-4")
 my3pop = ggplot() +
-  geom_point(data=pca, aes(x=PC1, y=PC2), size=1.5, stroke=1, alpha=0.5, color="grey50") +
-  geom_point(data=pca[pca$Population %in% c("FRA-VEY*", "GBR-GRO*", "SCO-HAR*"), ], aes(x=PC1, y=PC2, color=Population), 
-             size=1.5, stroke=1, alpha=0.5) +
+  geom_point(data=pca[!(pca$ID %in% tree.ids), ], 
+             aes(x=PC1, y=PC2), size=1.5, stroke=1, alpha=0.5, color="grey50") +
+  geom_point(data=pca[pca$Population %in% c("FRA-VEY*", "GBR-GRO*", "SCO-HAR*") & !(pca$ID %in% tree.ids), ], 
+             aes(x=PC1, y=PC2, color=Population), size=1.5, stroke=1, alpha=0.5) +
+  geom_point(data=pca[pca$ID %in% tree.ids, ], 
+             aes(x=PC1, y=PC2, fill=Population), shape=21, color="black", size=1.5, stroke=1, alpha=1) +
   scale_color_manual(values = my3pop_colo) +
-  geom_hline(yintercept=0, color="grey60", size=0.1) + 
-  geom_vline(xintercept=0, color="grey60", size=0.1) +
+  geom_hline(yintercept=0, color="grey60", linewidth=0.1) + 
+  geom_vline(xintercept=0, color="grey60", linewidth=0.1) +
   labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), 
        y=paste0("PC2: ", round(eig[2,1]/sum(eig)*100),"%"),
        title=title) +
