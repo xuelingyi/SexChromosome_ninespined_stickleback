@@ -118,7 +118,7 @@ row1 = ggarrange(ncol=3, nrow=1,
                    theme(legend.position = "none", title = element_text(size=10)), 
                  LG3sex_pca.plot + geom_text(aes(x=0.01, y=0.1), label="XX", size=4) +
                    geom_text(aes(x=-0.05, y=0.1), label="XY", size=4) + 
-                   geom_text(aes(x=-0.17, y=0.03), label="Y'Y'?", size=4) + 
+                   geom_text(aes(x=-0.17, y=0.04), label="Y'Y'?", size=4) + 
                    theme(legend.position = "none", title = element_text(size=10)),
                  my3pop + theme(legend.position= "none", title = element_text(size=10)),
                  labels = c("A)", "B)", "C)"))
