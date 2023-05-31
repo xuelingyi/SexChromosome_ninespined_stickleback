@@ -1,0 +1,12 @@
+
+
+
+
+######################### get the genes annotated in the LG3 SDR #########################
+## the script liftover.awk is from https://sourceforge.net/p/lep-anchor/code/ci/master/tree/
+## first get contigs of all positions in the SDR of v7 coordinates, then tranfer to v6 coordinates
+awk -vinverse=1 -f liftover.awk V7.agp LG3_v7.list > LG3_v7ctg
+awk -f liftover.awk NSP_V6.agp LG3_v7ctg > LG3_v6.list
+
+## based on the range of the v6 coordinates, find genes located within this region (annotation was done on v6 reference)
+zcat Maker_Filtered.gff.gz | awk '$1=="LG3" && $3=="gene" && $4>=16913303 && $5<=16993303' | sort |uniq > LG3SDR_gene
