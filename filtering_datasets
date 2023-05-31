@@ -37,13 +37,5 @@ plink2 --vcf ${ind}_LG${chr}sex_a1m3_LG${chr}pop.vcf.gz --pca --allow-extra-chr 
 
 
 
-## separate only the LG3_pop for pca
-bcftools view ${ind}_LG${chr}sex_a1m3.vcf.gz -S LG${chr}_ID.list \
--Oz -o ${ind}_LG${chr}sex_a1m3_LG${chr}pop.vcf.gz
 
-vcftools --gzvcf ${ind}_LG${chr}sex_a1m3_LG${chr}pop.vcf.gz \
---missing-indv --out ${ind}_LG${chr}sex_a1m3_LG${chr}pop
 
-module load plink
-plink2 --vcf ${ind}_LG${chr}sex_a1m3_LG${chr}pop.vcf.gz \
---pca --allow-extra-chr --out ${ind}_LG${chr}sex_a1m3_LG${chr}pop
