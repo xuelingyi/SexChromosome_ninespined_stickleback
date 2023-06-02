@@ -1,5 +1,368 @@
+########### processing raw reads of the whole-genome sequencing on 128 individuals in 4 family crosses #############
+#### AdaptorRemoval (BGI DNBseq adaptors)
+ind=$(sed -n ${SLURM_ARRAY_TASK_ID}p WL_ind128)
+
+adapterremoval-2.3.1/build/AdapterRemoval \
+--file1 $(cat files | grep ${ind}/ | grep _1.fq.gz | sed 's/.*\///' | awk '$0="../western_lineage_raw/raw/"$0' | tr '\n' ' ') \
+--file2 $(cat files | grep ${ind}/ | grep _2.fq.gz | sed 's/.*\///' | awk '$0="../western_lineage_raw/raw/"$0' | tr '\n' ' ') \
+--adapter1 AGTCGGAGGCCAAGCGGTCTTAGGAAGACAANNNNNNNNNNCAACTCCTTGGCTCACA \
+--adapter2 AAGTCGGATCGTAGCCATGTCGTTCTGTGAGCCAAGGAGTTG \
+--basename ${ind} \
+--trimns --trimqualities --collapse \
+--gzip
 
 
+#### bwa mapping mark duplicates
+module load samtools
+module load bwa
+
+PL=DNBseq
+ind=$(sed -n ${SLURM_ARRAY_TASK_ID}p WL_ind128)
+
+bwa mem -t8 -M \
+-R "@RG\tID:${ind}\tSM:${ind}\tPL:${PL}\tLB:${ind}\tPU:1" \
+genomes/v7_ENA/GCA_902500615.3.fasta \
+../AdapterRemoved/${ind}.pair1.truncated.gz \
+../AdapterRemoved/${ind}.pair2.truncated.gz \
+| samtools view -F4 -h -b -o ${ind}_PE.bam
+
+bwa mem -t8 -M \
+-R "@RG\tID:${ind}\tSM:${ind}\tPL:${PL}\tLB:${ind}\tPU:1" \
+genomes/v7_ENA/GCA_902500615.3.fasta \
+../AdapterRemoved/${ind}.collapsed.gz \
+| samtools view -F4 -h -b -o ${ind}_ME.bam
+
+samtools sort ${ind}_PE.bam -O bam -o ${ind}_PE.sort.bam
+rm ${ind}_PE.bam
+samtools sort ${ind}_ME.bam -O bam -o ${ind}_ME.sort.bam
+rm ${ind}_ME.bam
+samtools merge ${ind}.bam ${ind}_PE.sort.bam ${ind}_ME.sort.bam
+rm ${ind}_PE.sort.bam ${ind}_ME.sort.bam
+
+##sort by name (-n)
+samtools sort -n ${ind}.bam -O bam -o ${ind}.nsort.bam
+samtools fixmate -@ 8 -m ${ind}.nsort.bam ${ind}.fixmate.bam
+rm ${ind}.bam
+rm ${ind}.nsort.bam
+
+## sort by coordinates
+samtools sort ${ind}.fixmate.bam -O bam -o ${ind}.fixmate.sort.bam
+rm ${ind}.fixmate.bam
+samtools index ${ind}.fixmate.sort.bam
+
+## mark duplicates
+samtools markdup ${ind}.fixmate.sort.bam ${ind}.markup.bam
+rm ${ind}.fixmate.sort.bam
+rm ${ind}.fixmate.sort.bam.bai
+samtools index ${ind}.markup.bam
+
+## mapping summary
+samtools flagstat ${ind}.markup.bam > flagstat/${ind}.markup.bam.flagstat
+
+
+######################### mpileup and LepMAP3 call sex-associated markers #########################
+module load samtools
+module load biojava
+
+ls ../markdup_bam/*markup.bam > sorted_bams  
+cat sorted_bams | sed 's/.*\///g; s/.markup.bam//g' > mapping.txt   
+cat genomes/v7_ENA/GCA_902500615.3.fasta | grep "LG" | awk '{print $1}' | sed 's/>//g' > v7_contigs.txt
+
+## array by LG (n=21 in v7)
+LG=$(sed -n ${SLURM_ARRAY_TASK_ID}p v7_contigs.txt)
+
+samtools mpileup -r ${LG} -q 20 -Q 30 -s $(cat sorted_bams) \
+| java -cp Lep-MAP3/bin/ Pileup2Likelihoods \
+| gzip > ${LG}.post.gz
+
+zcat *.post.gz | awk '(NR==1 || ($1!="CHR"))'| gzip > all_post.gz
+
+module load biojava
+
+zcat all_post.gz \
+| java -cp Lep-MAP3/bin/ ParentCall2 \
+data=../pedigree.txt posteriorFile=- removeNonInformative=1 \
+XLimit=2 | gzip > X.call.gz
+## get the sex-associated markers labeled with *
+zcat X.call.gz | awk '{print $1, $2}' | grep "*" | awk '{print $1}' | sort | uniq -c > X.call
+
+zcat all_post.gz \
+| java -cp Lep-MAP3/bin/ ParentCall2 \
+data=../pedigree.txt posteriorFile=- removeNonInformative=1 \
+ZLimit=2 | gzip > Z.call.gz
+zcat Z.call.gz | awk '{print $1, $2}' | grep "*" | awk '{print $1}' | sort | uniq -c > Z.call
+
+######################### GATK and SNP analyses #########################
+## GATK genotyping
+module load gatk
+#gatk  4.3.0.0  environment loaded
+
+ind=$(sed -n ${SLURM_ARRAY_TASK_ID}p WL_ind128)
+gatk --java-options "-Xmx8g" HaplotypeCaller \
+-R genomes/v7_ENA/GCA_902500615.3.fasta \
+-I markdup_bam/${ind}.markup.bam \
+-O ${ind}.gvcf.gz \
+-ERC GVCF
+
+## run in array by chromosome
+LG=$(sed -n ${SLURM_ARRAY_TASK_ID}p v7_contigs.txt)
+gatk --java-options "-Xmx30g" CombineGVCFs \
+-R genomes/v7_ENA/GCA_902500615.3.fasta \
+--intervals ${LG} \
+--variant ../HaplotypeCaller/F1_Bel_Mal_11_F10.gvcf.gz \
+...
+--variant ../HaplotypeCaller/Parent_Bel_Mal_16_M.gvcf.gz \
+-O WL128_v7_${LG}.gvcf.gz
+
+LG=$(sed -n ${SLURM_ARRAY_TASK_ID}p ../v7_contigs.txt)
+gatk --java-options "-Xmx30g" GenotypeGVCFs \
+-R genomes/v7_ENA/GCA_902500615.3.fasta \
+--intervals ${LG} \
+-V ../CombineGVCFs/WL128_v7_${LG}.gvcf.gz \
+-O WL128_v7_LG${SLURM_ARRAY_TASK_ID}.vcf.gz
+
+## get biallelic SNPs and filtering
+module load samtools
+module load vcftools
+
+LG=${SLURM_ARRAY_TASK_ID}
+bcftools view -m2 -M2 -v snps --min-ac=1 ../GenotypeGVCFs/WL128_v7_LG${LG}.vcf.gz \
+| vcftools --vcf - --minGQ 20 --minQ 30 --max-missing 0.3 --maf 0.01 --recode --recode-INFO-all -c \
+| bcftools view -Oz -o WL128_v7_LG${LG}_SNPm3a1.vcf.gz
+tabix -p vcf WL128_v7_LG${LG}_SNPm3a1.vcf.gz
+
+### divide SNPs into 10kbp windows  
+for i in {1..21}; do zcat WL128_v7_LG${i}_SNPm3a1.vcf.gz | tail -n1 | awk '{print $1, $2}' >> ../window; done
+
+##### window_list.R
+window = read.table("window")
+window$range = ceiling(window$V2 / 10000)
+write.table(window, "window_range", sep="\t", quote=F, row.names=F, col.names=F)
+
+for (LG in 1:21) {
+chr=window[LG, "V1"]
+range = window[LG, "range"]
+list = NULL
+for (i in 1:range) {
+start=format((i-1)*10000, scientific=F)
+end=format(i*10000, scientific=F)
+list = rbind(list, c(chr, start, end))
+}
+write.table(list, paste0("LG", LG, "_10kbp.list"), sep="\t", quote=F, row.names=F, col.names=F)
+}
+
+##### LG_window.sh
+module load samtools
+module load vcftools
+
+LG=${SLURM_ARRAY_TASK_ID}
+range=$(cat window_range | sed -n ${LG}p | awk '{print $3}')
+
+mkdir LG${LG}
+mv LG${LG}_10kbp.list LG${LG}
+cd LG${LG}
+mkdir het
+mkdir depth
+mkdir GT
+
+## depth per sex per site (excluding parents which are deeper sequenced)
+for sex in male female
+do
+bcftools view -S ../../WL_F1_${sex}.list ../SNP_m3a1/WL128_v7_LG${LG}_SNPm3a1.vcf.gz \
+| vcftools --vcf - --site-mean-depth --out WL128_v7_LG${LG}_SNPm3a1_${sex}
+done
+
+## Fst between sexes per family
+for family in 11 13 14 16
+do
+bcftools view ../SNP_m3a1/WL128_v7_LG${LG}_SNPm3a1.vcf.gz \
+| vcftools --vcf - --weir-fst-pop F1_male_${family}.list --weir-fst-pop F1_female_${family}.list \
+--out WL128_v7_LG${LG}_SNPm3a1_fm${family}_fst
+done
+
+## F-value & per sex genotype count
+for i in $(seq 1 $range)
+do
+chr=$(sed -n ${i}p LG${LG}_10kbp.list | awk '{print $1}')
+start=$(sed -n ${i}p LG${LG}_10kbp.list | awk '{print $2}')
+end=$(sed -n ${i}p LG${LG}_10kbp.list | awk '{print $3}')
+
+## genotype count
+for sex in male female
+do
+bcftools query -S ../../WL_${sex}.list ../SNP_m3a1/WL128_v7_LG${LG}_SNPm3a1.vcf.gz \
+--regions ${chr}:${start}-${end} --format "[%GT\n]" \
+| sed 's/|/\//g' > GT/LG${LG}_GT.${sex}_${i}
+
+total=$(cat GT/LG${LG}_GT.${sex}_${i} | wc -l)
+miss=$(cat GT/LG${LG}_GT.${sex}_${i}  | grep "\./\." | wc -l)
+het=$(cat GT/LG${LG}_GT.${sex}_${i}  | grep "0/1" | wc -l)
+homref=$(cat GT/LG${LG}_GT.${sex}_${i}  | grep "0/0" | wc -l)
+homalt=$(cat GT/LG${LG}_GT.${sex}_${i}  | grep "1/1" | wc -l)
+echo $chr $start $end $total $miss $het $homref $homalt >> WL128_v7_LG${LG}_SNPm3a1_${sex}.count
+done
+
+## F-value
+bcftools view ../SNP_m3a1/WL128_v7_LG${LG}_SNPm3a1.vcf.gz --regions ${chr}:${start}-${end} \
+| vcftools --vcf - --het --out ./het/WL128_v7_LG${LG}_SNPm3a1_${i}
+
+done
+
+
+##### per_sex_summary.R
+window = read.table("window_range")
+female = read.table("../WL_female.list")
+male = read.table("../WL_male.list")
+
+for (LG in 1:21) {
+range = window[LG, "V3"]
+
+## Fst
+for (ID in c(11,13,14,16)) {
+  fst = read.table(paste0("WL128_v7_LG", LG, "_SNPm3a1_fm", ID, "_fst.weir.fst"), header=1)
+  assign(paste0("fst",ID),  fst[!is.na(fst$WEIR_AND_COCKERHAM_FST), ])
+}
+my.fst = NULL
+start = ceiling(fst11[1, "POS"] / 10000)
+for(i in start:range){
+   site=format(i*10000, scientific=F)
+   site=as.numeric(site)
+   data = mean(mean(fst11[fst11$POS <= site, "WEIR_AND_COCKERHAM_FST"]), mean(fst13[fst13$POS <= site, "WEIR_AND_COCKERHAM_FST"]), mean(fst14[fst14$POS <= site, "WEIR_AND_COCKERHAM_FST"]), mean(fst16[fst16$POS <= site, "WEIR_AND_COCKERHAM_FST"]))
+   my.fst = rbind(my.fst, c(site, data))
+}
+
+## depth
+df = read.table(paste0("LG", LG, "/WL128_v7_LG", LG, "_SNPm3a1_female.ldepth.mean"), header=1)
+dm = read.table(paste0("LG", LG, "/WL128_v7_LG", LG, "_SNPm3a1_male.ldepth.mean"), header=1)
+depth = merge(df, dm[,2:4], by="POS", suffixes=c(".f", ".m"))
+depth$f.m.ratio = depth$MEAN_DEPTH.f / depth$MEAN_DEPTH.m
+my.depth = NULL
+
+## F-value
+data.het = NULL
+
+for (i in 1:range) {
+site=format(i*10000, scientific=F)
+
+data.depth = mean(depth[depth$POS <= site, "f.m.ratio"])
+my.depth = rbind(my.depth, c(site, data.depth))
+
+het = read.table(paste0("LG", LG, "/het/WL128_v7_LG", LG, "_SNPm3a1_", i, ".het"), header=1)
+het$F = as.numeric(het$F)
+F.f = mean(het[het$INDV %in% female$V1, "F"])  # mean F over all females
+F.m = mean(het[het$INDV %in% male$V1, "F"])   # mean F over all males
+data.het = rbind(data.het, c(site, F.m, F.f))
+}
+
+my.fst = as.data.frame(my.fst)
+names(my.fst) = c("site", "WEIR_AND_COCKERHAM_FST_mean")
+write.csv(my.fst, paste0("LG",LG,"_site_fst_10kb.csv"), row.names = F)
+
+my.depth = as.data.frame(my.depth)
+write.csv(my.depth, paste0("LG", LG, "/LG", LG, "_site_depth_f.m.ratio_mean_10kb.csv"), row.names = F)
+
+data.het = as.data.frame(data.het)
+names(data.het) = c("end", "male_F", "female_F")
+write.csv(data.het, paste0("LG", LG, "/LG", LG, "_10kb_F.csv"), row.names=F)
+}
+
+### R plots
+## F and heterozygosity count
+for (LG in 1:21) {
+  ### het
+  myF = read.csv(paste0("LG", LG, "_10kb_F.csv"))
+  assign(paste0("het_plot", LG), ggplot() + 
+           geom_line(data=myF, aes(x=end, y=male_F), color="royalblue", alpha=0.5) +
+           geom_line(data=myF, aes(x=end, y=female_F), color="indianred", alpha=0.5) +
+           geom_hline(yintercept = 0) +
+           labs(x="V7 position (bp)", y="mean F", title=paste0("LG", LG, " (10 kbp window)")))
+  
+  ## genotype counts
+  count.f = read.table(paste0("WL128_v7_LG", LG, "_SNPm3a1_female.count"))
+  names(count.f) = c("chr", "start", "end", "total", "miss", "het", "hom.ref", "hom.alt")
+  count.m = read.table(paste0("WL128_v7_LG", LG, "_SNPm3a1_male.count"))
+  names(count.m) = c("chr", "start", "end", "total", "miss", "het", "hom.ref", "hom.alt")
+  count.f$female_heterozygous_percent = count.f$het/(count.f$total - count.f$miss)
+  count.f$female_homozygous_percent = (count.f$hom.ref + count.f$hom.alt) /(count.f$total - count.f$miss)
+  count.m$male_heterozygous_percent = count.m$het/(count.m$total - count.m$miss)
+  count.m$male_homozygous_percent = (count.m$hom.ref + count.m$hom.alt) /(count.m$total - count.m$miss)
+
+  count_he = ggplot() + geom_line(data=count.m, aes(x=end, y=male_heterozygous_percent), 
+                                  color="royalblue", alpha=0.5) +
+    geom_line(data=count.f, aes(x=end, y=female_heterozygous_percent), 
+              color="indianred",  alpha=0.5) +
+    labs(x="V7 position (bp)", y="percent of sites", 
+         title=paste0("LG", LG, " heterozygous sites %"))
+  count_ho = ggplot() + geom_line(data=count.m, aes(x=end, y=male_homozygous_percent), 
+                                  color="royalblue", alpha=0.5) +
+    geom_line(data=count.f, aes(x=end, y=female_homozygous_percent), 
+              color="indianred",  alpha=0.5) +
+    labs(x="V7 position (bp)", y="percent of sites",
+         title=paste0("LG", LG, " homozygous sites %"))
+  # assign(paste0("count_plot", LG), ggarrange(ncol = 1, nrow=2, count_he, count_ho))
+  assign(paste0("count_he", LG), count_he)
+}
+
+ggarrange(nrow=7, ncol = 3,
+          het_plot1, het_plot2, het_plot3, 
+          het_plot4, het_plot5, het_plot6, 
+          het_plot7, het_plot8, het_plot9,
+          het_plot10, het_plot11, het_plot12,
+          het_plot13, het_plot14, het_plot15, 
+          het_plot16, het_plot17, het_plot18, 
+          het_plot19, het_plot20, het_plot21)
+ggarrange(nrow=7, ncol=3,
+          count_he1, count_he2, count_he3, 
+          count_he4, count_he5, count_he6, 
+          count_he7, count_he8, count_he9,
+          count_he10, count_he11, count_he12,
+          count_he13, count_he14, count_he15, 
+          count_he16, count_he17, count_he18, 
+          count_he19, count_he20, count_he21)
+
+## depth
+for (LG in 1:21) {
+  depth = read.csv(paste0("LG", LG, "_site_depth_f.m.ratio_mean_10kb.csv"))
+  assign(paste0("depth_plot", LG), ggplot() + 
+           geom_point(data=depth, aes(x=V1, y=V2)) +
+           scale_y_continuous(limits = c(0.5,2))+
+           labs(x="V7 position (bp)", y="female/male depth", 
+                title=paste0("LG", LG, " (10 kbp window)")))
+}
+ggarrange(nrow=7, ncol=3,
+          depth_plot1, depth_plot2, depth_plot3, 
+          depth_plot4, depth_plot5, depth_plot6, 
+          depth_plot7, depth_plot8, depth_plot9,
+          depth_plot10, depth_plot11, depth_plot12,
+          depth_plot13, depth_plot14, depth_plot15, 
+          depth_plot16, depth_plot17, depth_plot18, 
+          depth_plot19, depth_plot20, depth_plot21)
+          
+## Fst
+color11 = "black"
+color13 = "#fdae61"
+color14 = "#abdda4"
+color16 = "#2b83ba"
+
+for (LG in 1:21) {
+  p=ggplot()
+  for (ID in c(11, 13, 14, 16)) {
+    myFst = read.csv(paste0("LG", LG, "_fm_", ID, "_site_fst_10kb.csv"))
+    print(range(myFst$WEIR_AND_COCKERHAM_FST_mean))
+    p = p + geom_point(data=myFst, aes(x=site, y=WEIR_AND_COCKERHAM_FST_mean), 
+                       color=get(paste0("color", ID)), alpha=0.5)
+    assign(paste0("fst_plot", LG), p + scale_y_continuous(limits = c(-0.15, 0.25)) +
+             labs(x="V7 position (bp)", y="male-female Fst", 
+                  title=paste0("LG", LG, " (10 kbp window)")))
+}}
+ggarrange(nrow=7, ncol = 3,
+          fst_plot1, fst_plot2, fst_plot3, 
+          fst_plot4, fst_plot5, fst_plot6, 
+          fst_plot7, fst_plot8, fst_plot9,
+          fst_plot10, fst_plot11, fst_plot12,
+          fst_plot13, fst_plot14, fst_plot15, 
+          fst_plot16, fst_plot17, fst_plot18, 
+          fst_plot19, fst_plot20, fst_plot21)
 
 
 ######################### get the genes annotated in the LG3 SDR #########################
