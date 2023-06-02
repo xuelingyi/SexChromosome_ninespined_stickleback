@@ -343,7 +343,6 @@ color11 = "black"
 color13 = "#fdae61"
 color14 = "#abdda4"
 color16 = "#2b83ba"
-
 for (LG in 1:21) {
   p=ggplot()
   for (ID in c(11, 13, 14, 16)) {
@@ -363,6 +362,99 @@ ggarrange(nrow=7, ncol = 3,
           fst_plot13, fst_plot14, fst_plot15, 
           fst_plot16, fst_plot17, fst_plot18, 
           fst_plot19, fst_plot20, fst_plot21)
+
+######################### narrow down the region #########################
+## based on heterozygotes
+for (LG in 1:21) {
+  count.f = read.table(paste0("WL128_v7_LG", LG, "_SNPm3a1_female.count"))
+  names(count.f) = c("chr", "start", "end", "total", "miss", "het", "hom.ref", "hom.alt")
+  count.m = read.table(paste0("WL128_v7_LG", LG, "_SNPm3a1_male.count"))
+  names(count.m) = c("chr", "start", "end", "total", "miss", "het", "hom.ref", "hom.alt")
+  count.f$female_heterozygous_percent = count.f$het/(count.f$total - count.f$miss)
+  count.m$male_heterozygous_percent = count.m$het/(count.m$total - count.m$miss)
+  count.data = merge(count.f, count.m, suffixes = c(".f", ".m"), by="end")
+  count.data$het.div = abs(count.data$female_heterozygous_percent - count.data$male_heterozygous_percent)
+  count.data = count.data[!is.na(count.data$het.div), ]
+
+  data = count.data[count.data$het.div > 0.3,]
+  if(nrow(data)> 0){
+    print(LG)
+    print(nrow(data))
+    print(data[,"end"])
+  }
+}
+ggplot() + 
+  geom_vline(xintercept = count.data[count.data$het.div>0.3, "end"], color="grey80", lwd=1)+
+  geom_line(data=count.m, aes(x=end, y=male_heterozygous_percent), color="royalblue", alpha=0.8) +
+  geom_line(data=count.f, aes(x=end, y=female_heterozygous_percent), color="indianred", alpha=0.8) +
+  scale_x_continuous(limits = range) + 
+  theme_bw() + theme(panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) +
+  labs(x="", y="heterozygous sites %")
+
+## based on F-value
+for (LG in 1:21) {
+  myF = read.csv(paste0("LG", LG, "_10kb_F.csv"))
+  myF$diviation = abs(myF$female_F - myF$male_F)
+  myF = myF[!is.na(myF$diviation),]
+  print(paste0("LG", LG, ": ", paste0(myF[abs(myF$diviation)>0.95, "end"], collapse = ", ")))
+}
+ggplot() + 
+  geom_vline(xintercept = myF[myF$diviation>0.95, "end"], color="grey80", lwd=1)+
+  geom_line(data=myF, aes(x=end, y=male_F), color="royalblue", alpha=0.8) +
+  geom_line(data=myF, aes(x=end, y=female_F), color="indianred", alpha=0.8) +
+  scale_x_continuous(limits = range) + 
+  theme_bw() + theme(panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) +
+  labs(x="LG3 position (bp)", y="mean F")
+
+######################## test using F and PCA ###########################
+LG=3
+region1 = c(14720000, 14790000)
+region2 = c(17260000, 17340000)
+
+## family data
+for (region in c("14M", "17M")) {
+  data = paste0("WL128_v7_LG3_SNPm3a1_", region)
+  if(region == "14M"){title = "LG3: 14720000-14790000"}
+  if(region == "17M"){title = "LG3: 17260000-17340000"}
+  
+  het = read.table(paste0(data, ".het"), header=1)
+  het = merge(het, sif, by.x="INDV", by.y="SampleID")
+  assign(paste0("het_plot", region), ggplot() + 
+           geom_jitter(data=het, aes(x="", y=F, color=sex), size=2, alpha=0.5, width=0.3) + labs(x="4 families", y="inbreeding coefficient (F)", title="") + theme_bw())
+  
+  load(paste0(data, "_PCAplot.RData"))
+  scores$ID = row.names(scores)
+  scores = merge(scores, sif, by.x="ID", by.y="SampleID")
+  assign(paste0("miss.plot",region), ggplot(data=scores) + 
+           #geom_point(aes(x=PC1, y=PC2, color=indvmiss), size=2.5, alpha=0.5) +
+           geom_point(aes(x=PC1, y=PC2, color=indvmiss), size=2, alpha=0.5) +
+           geom_hline(yintercept = 0, lwd=0.5, color="grey60") + 
+           geom_vline(xintercept = 0, lwd=0.5, color="grey60") + 
+           labs(x=paste0("PC1: ", round(eig[1]/sum(eig) * 100, 2), "%"),
+                y=paste0("PC2: ", round(eig[2]/sum(eig) * 100, 2), "%"),
+                title=paste0("4 families\n", title)) + theme_bw()) 
+  assign(paste0("region.plot",region), ggplot() + 
+           geom_point(data=scores, 
+                      aes(x=PC1, y=PC2, color=sex), size=2, alpha=0.5) +
+           geom_point(data=scores[scores$ID %in% c("F1_Bel_Mal_14_M15", "F1_Bel_Mal_14_F15"),], 
+                      aes(x=PC1, y=PC2, color=sex), size=2, alpha=0.5) +
+           geom_hline(yintercept = 0, lwd=0.5, color="grey60") + 
+           geom_vline(xintercept = 0, lwd=0.5, color="grey60") + 
+           labs(x=paste0("PC1: ", round(eig[1]/sum(eig) * 100, 2), "%"),
+                y=paste0("PC2: ", round(eig[2]/sum(eig) * 100, 2), "%"), 
+                title="") + theme_bw())
+}
+ggarrange(nrow=1, ncol=2, miss.plot14M, miss.plot17M)
+p14 = ggarrange(nrow=1, ncol=2, widths = c(1, 2), 
+                het_plot14M + scale_color_manual(values=c("F"="indianred", "M"="royalblue"), guide="none"), 
+                region.plot14M + scale_color_manual(values=c("F"="indianred", "M"="royalblue")))
+p17 = ggarrange(nrow=1, ncol=2, widths = c(1, 2), 
+                het_plot17M + scale_color_manual(values=c("F"="indianred", "M"="royalblue"), guide="none"), 
+                region.plot17M + scale_color_manual(values=c("F"="indianred", "M"="royalblue")))
+
+ggarrange(ncol=1, nrow=2,
+          annotate_figure(p14, fig.lab ="LG3: 14720000-14790000"),
+          annotate_figure(p17, fig.lab ="LG3: 17260000-17340000"))
 
 
 ######################### get the genes annotated in the LG3 SDR #########################
