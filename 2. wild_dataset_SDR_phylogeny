@@ -53,18 +53,15 @@ plink2 --vcf Feng887_LG${chr}sex_a1m3_LG${pop}pop.vcf.gz --pca  --allow-extra-ch
 
 done
 
-
-
-
-################################## inversion and PCA ###########################################
-
+################################## R plots and analyses ###########################################
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
 pop = read.csv("pop_v7.csv")
 sif = read.csv("ind_v7.csv")
-
-non_EU = c("RUS-LEN", "JAP-BIW","USA-HLA", "CAN-FLO", "CAN-TEM")
+non_EU = c("RUS-LEN", "JAP-BIW", "USA-HLA", "CAN-FLO", "CAN-TEM")
 unknown = c("SCO-HAR", "GBR-GRO", "FRA-VEY", "SWE-NAV")
 
-############################## all 887 individuals from 45 populations: genetic sex identification based on F-values ###########################
 my.pop.order = c("GBR-GRO*", "SCO-HAR*", "FRA-VEY*", "BEL-MAL", "DEN-NOR", "NOR-UGE", "NOR-ENG", 
                  "SWE-FIS", "GER-RUE", "POL-GDY", "NOR-KVN",
                  "DEN-RES", "NOR-TYR", "SWE-LUN", "SWE-GOT", "SWE-HAN", "SWE-NAV*", "SWE-ABB", 
@@ -73,12 +70,12 @@ my.pop.order = c("GBR-GRO*", "SCO-HAR*", "FRA-VEY*", "BEL-MAL", "DEN-NOR", "NOR-
                  "FIN-PUL", "FIN-KRK", "FIN-RYT", "FIN-PYO", "RUS-KRU", "RUS-BOL", "RUS-MAS", 
                  "RUS-LEV",
                  "RUS-LEN", "JAP-BIW","USA-HLA", "CAN-FLO", "CAN-TEM")
-
 for (i in 1:nrow(sif887)) {
   if(sif887[i, "Population"] %in% unknown){
     sif887[i, "Population"] = paste0(sif887[i, "Population"], "*")
   }}
 
+##### all 887 individuals from 45 populations: genetic sex identification based on F-values #####
 for (chr in c(3, 12)){
   title = ifelse(chr==3, "LG3:17260000-17340000", "LG12:1-16900000")
   data = paste0("Feng887_LG", chr, "sex_a1m3")
@@ -95,41 +92,7 @@ for (chr in c(3, 12)){
 }
 ggarrange(ncol=1, nrow=2, LG3sex_het_plot, LG12sex_het_plot)
 
-########################################## the phylogeny dataset (101 individuals) and ML trees of SDRs #########################################################
-ind=tree101
-
-# the LG3 SDR  
-chr=3
-bcftools view -S ${ind}.list ../../v7/v7.LG${chr}.vcf.gz --regions LG3:17260000-17340000 \
-| vcftools --vcf - --minGQ 20 --minQ 30 --min-meanDP 5 --max-meanDP 25 --maf 0.01 --max-missing 0.3 --recode --recode-INFO-all -c \
-| bcftools view -Oz -o ${ind}_LG3sex_a1m3.vcf.gz
-
-vcf2phylip.py --input tree101_LG3sex_a1m3.vcf.gz
-
-raxmlHPC -f a -m GTRGAMMA -p 101 -x 101 -# 1000 \
--s tree101_LG3sex_a1m3.min4.phy \
--n tree101_LG3sex_a1m3
-
-
-# the LG12 SDR
-chr=12
-bcftools view -S ../${ind}.list ../../../v7/v7.LG${chr}.vcf.gz --regions LG12:1-16900000 \
-| vcftools --vcf - --minGQ 20 --minQ 30 --min-meanDP 5 --max-meanDP 25 --maf 0.01 --max-missing 0.3 --recode --recode-INFO-all -c \
-| bcftools view -Oz -o ${ind}_LG12sex_a1m3.vcf.gz
-
-vcf2phylip.py --input tree101_LG12sex_a1m3.vcf.gz
-
-raxmlHPC-PTHREADS -T 8 \
--f a -m GTRGAMMA -p 101 -x 101 -# 1000 \
--s tree101_LG12sex_a1m3.min4.phy \
--n tree101_LG12sex_a1m3
-
-
-library(ggplot2)
-library(ggpubr)
-library(dplyr)
-
-################# 887 wild-caught individuals by SDR #################
+###### PCA of EU pops sexed by each SDR ######
 for (chr in c(12, 3)){
   title = ifelse(chr==3, "LG3:17260000-17340000", "LG12:1-16900000")
   data = paste0("Feng887_LG", chr, "sex_a1m3_LG", chr, "pop")
@@ -263,3 +226,35 @@ pdf("../../LG3_introgression_Figures/Fig_Feng887_pcasex_Y.pdf", width = 11, heig
 png("../../LG3_introgression_Figures/Fig_Feng887_pcasex_Y.png", width = 8, height = 5, units = "in", res=600)
 ggarrange(ncol=1, nrow=2, row1, row2)
 dev.off()
+
+
+########################### the phylogeny dataset and ML trees of SDRs ###############################
+ind=tree101
+
+# the LG3 SDR  
+chr=3
+bcftools view -S ${ind}.list ../../v7/v7.LG${chr}.vcf.gz --regions LG3:17260000-17340000 \
+| vcftools --vcf - --minGQ 20 --minQ 30 --min-meanDP 5 --max-meanDP 25 --maf 0.01 --max-missing 0.3 --recode --recode-INFO-all -c \
+| bcftools view -Oz -o ${ind}_LG3sex_a1m3.vcf.gz
+
+vcf2phylip.py --input tree101_LG3sex_a1m3.vcf.gz
+
+raxmlHPC -f a -m GTRGAMMA -p 101 -x 101 -# 1000 \
+-s tree101_LG3sex_a1m3.min4.phy \
+-n tree101_LG3sex_a1m3
+
+
+# the LG12 SDR
+chr=12
+bcftools view -S ../${ind}.list ../../../v7/v7.LG${chr}.vcf.gz --regions LG12:1-16900000 \
+| vcftools --vcf - --minGQ 20 --minQ 30 --min-meanDP 5 --max-meanDP 25 --maf 0.01 --max-missing 0.3 --recode --recode-INFO-all -c \
+| bcftools view -Oz -o ${ind}_LG12sex_a1m3.vcf.gz
+
+vcf2phylip.py --input tree101_LG12sex_a1m3.vcf.gz
+
+raxmlHPC-PTHREADS -T 8 \
+-f a -m GTRGAMMA -p 101 -x 101 -# 1000 \
+-s tree101_LG12sex_a1m3.min4.phy \
+-n tree101_LG12sex_a1m3
+
+
