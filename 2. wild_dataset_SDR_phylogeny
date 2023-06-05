@@ -325,10 +325,10 @@ for (chr in c(12, 3)){
              scale_fill_manual(values=my.pop.col, breaks = names(my.pop.col)) +
              theme_void())
              }
-p1 = ggarrange(ncol=2, nrow=2, 
+p1 = ggarrange(ncol=2, nrow=2, labels = c("A)", "B)", "C)", "D)"),
           LG3SDR_pop12_PCA_miss.plot, LG12SDR_pop3_PCA_miss.plot,
           LG3SDR_pop12_PCA_sex.plot, LG12SDR_pop3_PCA_sex.plot)
-p2 = ggarrange(ncol=2, nrow=2,
+p2 = ggarrange(ncol=2, nrow=2, labels = c("E)", "F)", "G)", "H)"),
           LG3SDR_pop12_PCA_pop.plot + theme(legend.position = "none"), LG3SDR_pop12_map.plot,
           LG12SDR_pop3_PCA_pop.plot + theme(legend.position = "none"), LG12SDR_pop3_map.plot)
 ggarrange(nrow=2, ncol=1, heights = c(1, 1.5), p1, p2)
