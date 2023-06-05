@@ -1,8 +1,121 @@
+## total 237 individuals (filtered by kinship) from 12 marine populations are selected for the marine dataset
 
-########################################## HIest ##########################################
-###### SNPs fitlering 
-## DEN_RUS
-# snps of no missing data in parental populations 
+############################## filter biallelic SNPs from GATK processed data (obtained when processing the wild_dataset) ###############################
+module load samtools
+module load vcftools
+module load plink
+
+chr=${SLURM_ARRAY_TASK_ID}
+ind=marine237
+
+bcftools view -S ~/info/${ind}.list v7.LG${chr}.vcf.gz \
+| vcftools --vcf - --minGQ 20 --minQ 30 --min-meanDP 5 --max-meanDP 25 --maf 0.02 --max-missing 0.7 --recode --recode-INFO-all --out ${chr} -c \
+| bcftools view -Oz -o LG${chr}.${ind}.a2m7.vcf.gz
+tabix -p vcf LG${chr}.${ind}.a2m7.vcf.gz
+
+## transfer to plink format
+plink2 --vcf LG${chr}.${ind}.a2m7.vcf.gz --make-bed --allow-extra-chr --set-all-var-ids @:#[b37]\$r,\$a --out LG${chr}.${ind}.a2m7
+
+############################## autosomal data ##############################
+module load samtools
+module load vcftools
+
+ind=marine237
+
+## merge autosomes
+module load plink/1.90
+ls *.bed | sed s'/\./ /g; s/LG/LG /g' | sort -nk2 | sed 's/LG /LG/; s/ /\./g; s/.bed//g' | grep -v LG3 | grep -v LG12 > merge.auto
+plink --merge-list merge.auto --allow-extra-chr --out ${ind}_a2m7_no3.12
+module load plink/2.00a3
+
+## filter LD
+plink2 --bfile ../../auto/${ind}_a2m7_no3.12 --indep-pairwise 50 5 0.2 --allow-extra-chr --set-all-var-ids @:#[b37]\$r,\$a --out ${ind}_a2m7_no3.12
+plink2 --bfile ${ind}_a2m7_no3.12 --extract ${ind}_a2m7_no3.12.prune.in --allow-extra-chr --set-all-var-ids @:#[b37]\$r,\$a --make-bed --out ${ind}_a2m7_no3.12_LD2
+## additional filtering on maf and missing data
+plink2 --bfile ${ind}_a2m7_no3.12_LD2 --maf 0.05 --geno 0.1 --allow-extra-chr --set-all-var-ids @:#[b37]\$r,\$a --make-bed --out ${ind}_a2m7_no3.12_LD2_a5g1
+
+## recode as vcf
+plink2 --bfile ${ind}_a2m7_no3.12_LD2_a5g1 --recover-var-ids ${ind}_a2m7_no3.12_LD2_a5g1.bim --export vcf-4.2 id-paste=iid --allow-extra-chr --out ${ind}_a2m7_no3.12_LD2_a5g1
+
+## double-check kinship
+plink2 --bfile ${ind}_a2m7_no3.12_LD2_a5g1 --make-king-table --allow-extra-chr --set-all-var-ids @:#[b37]\$r,\$a --out ${ind}_a2m7_no3.12_LD2_a5g1
+
+############ IBDseq 
+module load biojava
+for chr in 1 2 #also {4..11} and {13..21}
+do
+java -Xmx2g -jar /projappl/project_2006364/ibdseq.r1206.jar \
+gt=../filter/bed_LD/marine237_a2m7_no3.12_LD2_a5g1.vcf \
+ibdlod=4 \
+chrom=LG${chr} \
+out=marine237_a2m7_no3.12_LD2_a5g1.lod4.LG${chr}
+done
+cat marine237_a2m7_no3.12_LD2_a5g1.lod4.LG*.ibd > marine237_a2m7_no3.12_LD2_a5g1.lod4.auto.ibd
+
+############ PCA 
+module load plink
+data=marine237_a2m7_no3.12_LD2_a5g1
+plink2 --bfile ${data} --pca --allow-extra-chr --out ${data}
+vcftools --vcf marine237_a2m7_no3.12_LD2_a5g1.vcf --missing-indv --out marine237_a2m7_no3.12_LD2_a5g1.vcf
+
+############ admixture 
+## make bim file readable in admixture (NOTE: do not run this in the loop!!!)
+cat ${data}.bim | sed 's/LG//g' > ./${data}.adm.bim
+cp ${data}.bed ./${data}.adm.bed
+cp ${data}.fam ./${data}.adm.fam
+
+module load admixture/1.3.0
+K=${SLURM_ARRAY_TASK_ID}
+data=marine237_a2m7_no3.12_LD2_a5g1
+## 10 replicates (i) per K
+for i in {1..10}
+do
+mkdir K${K}.rep${i}
+cd K${K}.rep${i}
+admixture -s time --cv=10 ../${data}.adm.bed ${K} | tee log${K}.rep${i}.out
+cd ../
+done
+
+## get the CV errors and the best K
+grep -h CV out* | sort -nk 4 > ${data}_CV.txt
+## CLUMPAK http://clumpak.tau.ac.il/
+for K in {1..12}; do mkdir CLUMPAK/K${K}; for i in {1..10}; do cp K${K}.rep${i}/*.Q CLUMPAK/K${K}/K${K}.rep${i}.Q ; done; done
+zip -r CLUMPAK.zip CLUMPAK
+
+############ autosomal region analyzed by sex 
+## subset by sex
+module load plink
+data=marine237_a2m7_no3.12_LD2_a5g1
+plink2 --bfile ${data} --keep ind237_f.list --allow-extra-chr --set-all-var-ids @:#[b37]\$r,\$a --make-bed --out ${data}_f
+plink2 --bfile ${data} --keep ind237_m.list --allow-extra-chr --set-all-var-ids @:#[b37]\$r,\$a --make-bed --out ${data}_m
+## run PCA and ADMIXTURE using the subset data ${data}_f and ${data}_m. Same codes above.
+
+############################## SDR data ##############################
+module load samtools
+module load vcftools
+module load plink
+
+ind=marine237
+
+### subset the sex region
+bcftools view LG3.${ind}.a2m7.vcf.gz --regions LG3:17260000-17340000 -Oz -o LG3.${ind}.a2m7.LG3sex.vcf.gz
+bcftools view LG12.${ind}.a2m7.vcf.gz --regions LG12:1-16900000 -Oz -o LG12.${ind}.a2m7.LG12sex.vcf.gz
+# run PCA using the same codes above
+
+## female only
+plink2 --bfile LG3.marine237.a2m7.LG3sex --keep ID.f --geno 0.1 --make-bed --allow-extra-chr --out female_LG3.marine237.a2m7.LG3sex.g1
+plink2 --bfile LG12.marine237.a2m7.LG12sex --keep ID.f --geno 0.1 --make-bed --allow-extra-chr --out female_LG12.marine237.a2m7.LG12sex.g1
+
+## transfer to vcf and estimate missing data
+plink2 --bfile female_LG3.marine237.a2m7.LG3sex.g1 --allow-extra-chr --export vcf-4.2 id-paste=iid --out female_LG3.marine237.a2m7.LG3sex.g1
+vcftools --vcf female_LG3.marine237.a2m7.LG3sex.g1.vcf --missing-indv --out female_LG3.marine237.a2m7.LG3sex.g1
+plink2 --bfile female_LG12.marine237.a2m7.LG12sex.g1 --allow-extra-chr --export vcf-4.2 id-paste=iid --out female_LG12.marine237.a2m7.LG12sex.g1
+vcftools --vcf female_LG12.marine237.a2m7.LG12sex.g1.vcf --missing-indv --out female_LG12.marine237.a2m7.LG12sex.g1
+# run PCA and admixture using the same codes above
+
+########################################## HIest datasets ##########################################
+############ DEN_RUS
+## snps of no missing data in parental populations 
 plink2 --bfile marine237_a2m7_no3.12_LD2_a5g1 --keep DEN_RUS.list --geno 0 --allow-extra-chr --export vcf-4.2 id-paste=iid --out marine237_a2m7_no3.12_LD2_a5g1_DENRUSg0
 
 # allele freq in parental pops
@@ -14,7 +127,6 @@ den = read.table("DEN.frq", skip=1)
 names(den) = c("CHROM", "POS", "N_ALLELES", "N_CHR", "a1.freq", "a2.freq")
 rus = read.table("RUS.frq", skip=1)
 names(rus) = c("CHROM", "POS", "N_ALLELES", "N_CHR", "a1.freq", "a2.freq")
-
 sites = den[, 1:2]
 sites$DEN.freq= "NULL"
 sites$RUS.freq= "NULL"
@@ -28,19 +140,15 @@ for (i in 1:nrow(sites)) {
 sites$DEN.freq = as.numeric(sites$DEN.freq)
 sites$RUS.freq = as.numeric(sites$RUS.freq)
 sites$abs.freq = abs(sites$DEN.freq - sites$RUS.freq)
-
 write.table(sites, "DENRUS_freq.csv", row.names=F)
-write.table(sites[sites$abs.freq == 1, 1:2],  "sites_freq10.list", row.names=F, quote=F)
+write.table(sites[sites$abs.freq == 1, 1:2],  "sites_freq10.list", row.names=F, quote=F) ## fixed diagnostic SNPs
+# end R
 
 # filter keeping only the selected snps
-vcftools --vcf marine237_a2m7_no3.12_LD2_a5g1.vcf \
---positions sites_freq10.list \
---recode --recode-INFO-all \
---out marine237_a2m7_no3.12_LD2_a5g1_DENRUSg0freq10
+vcftools --vcf marine237_a2m7_no3.12_LD2_a5g1.vcf --positions sites_freq10.list --recode --recode-INFO-all --out marine237_a2m7_no3.12_LD2_a5g1_DENRUSg0freq10
 
-
-## GER_SWE 
-plink2 --bfile ../../../filter/bed_LD/marine237_a2m7_no3.12_LD2_a5g1 --keep GER_SWE.list --geno 0 --allow-extra-chr --export vcf-4.2 id-paste=iid --out marine237_a2m7_no3.12_LD2_a5g1_GERSWEg0
+############ GER_SWE 
+plink2 --bfile marine237_a2m7_no3.12_LD2_a5g1 --keep GER_SWE.list --geno 0 --allow-extra-chr --export vcf-4.2 id-paste=iid --out marine237_a2m7_no3.12_LD2_a5g1_GERSWEg0
 vcftools --vcf marine237_a2m7_no3.12_LD2_a5g1_GERSWEg0.vcf --keep GER-RUE.list --freq --out GER
 vcftools --vcf marine237_a2m7_no3.12_LD2_a5g1_GERSWEg0.vcf --keep SWE-GOT.list --freq --out SWE
 
@@ -49,7 +157,6 @@ ger = read.table("GER.frq", skip=1)
 names(ger) = c("CHROM", "POS", "N_ALLELES", "N_CHR", "a1.freq", "a2.freq")
 swe = read.table("SWE.frq", skip=1)
 names(swe) = c("CHROM", "POS", "N_ALLELES", "N_CHR", "a1.freq", "a2.freq")
-
 sites = ger[, 1:2]
 sites$GER.freq= "NULL"
 sites$SWE.freq= "NULL"
@@ -63,77 +170,9 @@ for (i in 1:nrow(sites)) {
 sites$GER.freq = as.numeric(sites$GER.freq)
 sites$SWE.freq = as.numeric(sites$SWE.freq)
 sites$abs.freq = abs(sites$GER.freq - sites$SWE.freq)
-
 write.table(sites, "GERSWE_freq.csv", row.names=F)
 write.table(sites[sites$abs.freq >= 0.4, 1:2],  "sites_freq4.list", row.names=F, quote=F)
 # end R
 
-vcftools --vcf ../../../filter/bed_LD/marine237_a2m7_no3.12_LD2_a5g1.vcf \
---positions sites_freq4.list --keep GER_SWE_POL.list \
---recode --recode-INFO-all \
---out marine237_a2m7_no3.12_LD2_a5g1_GERSWEg0freq4_pop3
+vcftools --vcf marine237_a2m7_no3.12_LD2_a5g1.vcf --positions sites_freq4.list --keep GER_SWE_POL.list --recode --recode-INFO-all --out marine237_a2m7_no3.12_LD2_a5g1_GERSWEg0freq4_pop3
 
-########################################### plot HIest ###########################################
-library(HIest)
-library(vcfR)
-library(ggplot2)
-library(ggpubr)
-ind237 = read.csv("marine237.csv")
-
-## all populations
-endpops = "DENRUS"
-freq=c(4, 5, 8, 10)
-
-## three populations
-endpops = "GERSWE"
-freq=4
-
-P = read.csv(paste0(endpops, "_freq.csv"), sep=" ")
-for (f in freq) {
-  p = P[P$abs.freq >= f/10, 1:4]
-  names(p) = c("Locus", "Allele",  "P1", "P2")
-  
-  data = read.vcfR(paste0("marine237_a2m7_no3.12_LD2_a5g1_", endpops,
-                          "g0freq", f, ".recode.vcf")) 
-  G = t(data@gt)
-  G = G[-1, ]
-  if(!(dim(G)[2] == nrow(p))){print("P and G data do not match in nsnps!")}
-  nsnps = dim(G)[2] 
-  ninds = dim(G)[1] 
-  
-  g = as.data.frame(NULL)
-  for(i in 1:nrow(G)){
-    count = sapply(G[i,], FUN = function(x){
-      if(!is.na(x)) {
-        gt = unlist(strsplit(x, split="/"))
-        x = as.numeric(gt[1]) + as.numeric(gt[2])}
-      else{x = "NA"}
-    })
-    g = rbind(g, count)
-  }
-  row.names(g) = row.names(G)
-  colnames(g) = (data@fix)[,3] # ID
-  
-  HI.ac <- HIest(g, p,  type="allele.count",
-                 iterations=500, surf=TRUE, startgrid=50)
-  HI.ac$SampleID = row.names(G)
-  HI.ac = merge(HI.ac, 
-                ind237[, c("SampleID", "Species", "Population", "sex_region", "sex",
-                           "adm2", "adm3", "adm4", "adm5")], 
-                by="SampleID")
-  
-  save(f, nsnps, ninds, p, g, HI.ac, 
-       file=paste0(endpops, "g0freq", f, ".RData"))
-  
-  ggplot(data=HI.ac) + 
-    geom_segment(aes(x = 0, y = 0, xend = 0.5, yend = 1)) + 
-    geom_segment(aes(x = 0, y = 0, xend = 1, yend = 0)) + 
-    geom_segment(aes(x = 0.5, y = 1, xend = 1, yend = 0)) +
-    geom_point(aes(x=S, y=H, color=Population)) + 
-    labs(x="S", y="HI", 
-         title = paste0(endpops, "_freq", f/10, ": n=", ninds, ", snps=", nsnps)) +
-    theme_classic()
-}
-
-png(paste0(endpops, "_freq", f/10, ".png"), height = 3, width = 5, units = "in", res=600)
-dev.off()
