@@ -92,7 +92,7 @@ data=../pedigree.txt posteriorFile=- removeNonInformative=1 \
 ZLimit=2 | gzip > Z.call.gz
 zcat Z.call.gz | awk '{print $1, $2}' | grep "*" | awk '{print $1}' | sort | uniq -c > Z.call
 
-######################### GATK and SNP analyses #########################
+################################## GATK genotyping ##########################################
 ## GATK genotyping
 module load gatk
 #gatk  4.3.0.0  environment loaded
@@ -121,7 +121,8 @@ gatk --java-options "-Xmx30g" GenotypeGVCFs \
 -V ../CombineGVCFs/WL128_v7_${LG}.gvcf.gz \
 -O WL128_v7_LG${SLURM_ARRAY_TASK_ID}.vcf.gz
 
-## get biallelic SNPs and filtering
+
+########################### biallelic SNPs and window-based analyses #################################
 module load samtools
 module load vcftools
 
@@ -406,7 +407,8 @@ ggplot() +
   theme_bw() + theme(panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) +
   labs(x="LG3 position (bp)", y="mean F")
 
-######################## test using F and PCA ###########################
+
+######################## validate candidate regions using F and PCA ###########################
 LG=3
 region1 = c(14720000, 14790000)
 region2 = c(17260000, 17340000)
