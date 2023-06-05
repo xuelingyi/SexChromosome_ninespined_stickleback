@@ -40,6 +40,17 @@ bcftools view ${ind}_LG${chr}sex_a1m3.vcf.gz -S LG${chr}_ID.list -Oz -o ${ind}_L
 vcftools --gzvcf ${ind}_LG${chr}sex_a1m3_LG${chr}pop.vcf.gz --missing-indv --out ${ind}_LG${chr}sex_a1m3_LG${chr}pop
 plink2 --vcf ${ind}_LG${chr}sex_a1m3_LG${chr}pop.vcf.gz --pca --allow-extra-chr --out ${ind}_LG${chr}sex_a1m3_LG${chr}pop
 
+## PCA on the populations sexed by the other SDR
+if [ $chr == 3 ]
+then
+pop=12
+else
+pop=3
+fi
+bcftools view ../Feng887_LG${chr}sex_a1m3.vcf.gz -S ../../scripts/Feng887/LG${pop}_ID.list -Oz -o Feng887_LG${chr}sex_a1m3_LG${pop}pop.vcf.gz
+vcftools --gzvcf Feng887_LG${chr}sex_a1m3_LG${pop}pop.vcf.gz --missing-indv --out Feng887_LG${chr}sex_a1m3_LG${pop}pop
+plink2 --vcf Feng887_LG${chr}sex_a1m3_LG${pop}pop.vcf.gz --pca  --allow-extra-chr --out Feng887_LG${chr}sex_a1m3_LG${pop}pop
+
 done
 
 
