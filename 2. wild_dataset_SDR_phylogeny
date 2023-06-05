@@ -103,6 +103,24 @@ for (chr in c(12, 3)){
   pca = merge(pca, sif887, by.x="ID", by.y="SampleID")
   eig=read.table(paste0(data, ".eigenval"))
   
+  assign(paste0("LG", chr, "sex_miss.plot"),ggplot(pca, aes(x=PC1, y=PC2, color=F_MISS)) +
+           geom_point(size=2.5, stroke=1, alpha=0.5) +
+           geom_hline(yintercept=0, color="grey60", size=0.1) + 
+           geom_vline(xintercept=0, color="grey60", size=0.1) +
+           labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), 
+                y=paste0("PC2: ", round(eig[2,1]/sum(eig)*100),"%"),
+                title=title) + theme_bw() +
+           theme(legend.background = element_rect(fill = "transparent")))
+  assign(paste0("LG", chr, "sex_pop.plot"), ggplot() +
+           geom_point(data=pca, aes(x=PC1, y=PC2, fill=Population, stroke=stroke), 
+                      size=2.5, alpha=0.5, shape=21) +
+           geom_hline(yintercept=0, color="grey60", size=0.1) + 
+           geom_vline(xintercept=0, color="grey60", size=0.1) +
+           labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), 
+                y=paste0("PC2: ", round(eig[2,1]/sum(eig)*100),"%"),
+                title=title) + theme_bw() +
+           theme(legend.background = element_rect(fill = "transparent")))
+           
   if (chr==12) {
     assign(paste0("LG", chr, "sex_pca.plot"), ggplot() +
              geom_point(data=pca[pca$Population != "POL-GDY",], 
@@ -141,73 +159,49 @@ for (chr in c(12, 3)){
              theme(legend.background = element_rect(fill = "transparent")))
   }
 }
+ggarrange(ncol=1, nrow=2, heights = c(1, 1.5),
+          ggarrange(ncol=2, nrow=1, labels = c("A)", "B)"), LG3sex_miss.plot, LG12sex_miss.plot),
+          ggarrange(ncol=2, nrow=1, widths = c(1, 1.3), labels = c("C)", "D)"), LG3sex_pop.plot, LG12sex_pop.plot))
 
+###### LG3 SDR indicates an inversion ######
 chr=3  
-my3pop_colo = c("FRA-VEY*" = "#fdae61",
-                "GBR-GRO*" = "#54aa47",
-                "SCO-HAR*" = "#2b83ba")
-tree.ids = c("FRA-VEY-1", "FRA-VEY-10", 
-             "SCO-HAR-1", "SCO-HAR-11", "SCO-HAR-2", 
-             "GBR-GRO-10", "GBR-GRO-11", "GBR-GRO-4")
-my3pop = ggplot() +
-  geom_point(data=pca[!(pca$ID %in% tree.ids), ], 
-             aes(x=PC1, y=PC2), size=1.5, stroke=1, alpha=0.5, color="grey50") +
-  geom_point(data=pca[pca$Population %in% c("FRA-VEY*", "GBR-GRO*", "SCO-HAR*") & !(pca$ID %in% tree.ids), ], 
-             aes(x=PC1, y=PC2, color=Population), size=1.5, stroke=1, alpha=0.5) +
-  geom_point(data=pca[pca$ID %in% tree.ids, ], 
-             aes(x=PC1, y=PC2, fill=Population), shape=21, color="black", size=1.5, stroke=1, alpha=1) +
-  scale_color_manual(values = my3pop_colo) +
+my3pop_colo = c("SCO-HAR*" = "#fdae61", "GBR-GRO*" = "#0fa507")
+mypop = ggplot() +
+  geom_point(data=pca, aes(x=PC1, y=PC2), size=2, stroke=0.3, alpha=0.5, fill="grey50", shape=21) +
+  geom_point(data=pca[pca$Population %in% c("GBR-GRO*", "SCO-HAR*"), ], 
+             aes(x=PC1, y=PC2, fill=Population), size=2, stroke=0.3, shape=21) +
+  scale_fill_manual(values = my3pop_colo) +
   geom_hline(yintercept=0, color="grey60", linewidth=0.1) + 
   geom_vline(xintercept=0, color="grey60", linewidth=0.1) +
   labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), 
        y=paste0("PC2: ", round(eig[2,1]/sum(eig)*100),"%"),
        title=title) +
-  theme_bw() +
-  theme(legend.background = element_rect(fill = "transparent"))
+  theme_bw() + theme(legend.background = element_rect(fill = "transparent"))
 
-### additional evidence for an inversion
+## additional evidence for an inversion
 het = read.table("Feng887_LG3sex_a1m3_LG3pop.het", header=1)
 lg3_data = merge(pca, het, by.x = "ID", by.y = "INDV")
 lg3_data$O_HET = (lg3_data$N_SITES - lg3_data$O.HOM.) / lg3_data$N_SITES
-
-mean(lg3_data[lg3_data$sex == "Male" & lg3_data$Population != "POL-GDY", "PC1"])
-#[1] -0.0589662
-## make heterozygotes around zero
+# center and fold PC1
 lg3_data$PC1 = lg3_data$PC1 + 0.0589662
-## fold
 lg3_data$PC1 = abs(lg3_data$PC1)
+p3 = ggplot() + 
+  geom_point(data = lg3_data, aes(x=PC1, y=O_HET), color="grey60", alpha=0.5) +
+  geom_point(data = lg3_data[lg3_data$Population %in% c("SCO-HAR*", "GBR-GRO*"),],aes(x=PC1, y=O_HET, fill=Population), shape=21, stroke=0.3) +
+  scale_fill_manual(values = my3pop_colo) +
+  labs(y="observed heterozygosity", title="", x="PC1 (centered and folded)")
 
-## remove spurious individuals 
-p2.data = lg3_data[!(lg3_data$Population %in% c("SCO-HAR*", "GBR-GRO*", "FRA-VEY*")) & 
-                     lg3_data$ID != "POL-GDY-16", ]
+## remove the UK populations
+p2.data = lg3_data[!(lg3_data$Population %in% c("SCO-HAR*", "GBR-GRO*")), ]
 cor.test(x=p2.data$PC1, y=p2.data$O_HET, method = "pearson", alternative = "two.sided")
-# 	Pearson's product-moment correlation
-#data:  p2.data$PC1 and p2.data$O_HET
-#t = -54.722, df = 163, p-value < 2.2e-16
-#alternative hypothesis: true correlation is not equal to 0
-#95 percent confidence interval:
-#  -0.9807120 -0.9645804
-#sample estimates:
-#  cor 
-#-0.9738463 
-
-p2.2 = ggplot(p2.data[order(p2.data$sex),], 
-              aes(x=PC1, y=O_HET)) + 
+p2.2 = ggplot(p2.data[order(p2.data$sex),], aes(x=PC1, y=O_HET)) + 
   geom_point(aes(color=sex), alpha=0.6) +
   scale_color_manual(values=c("Female"="indianred", "Male"="royalblue")) +
   geom_smooth(method='lm', color="grey30", lwd=0.5, alpha=0.4) +
-  geom_text(x=0.1, y=0.55, label="r=-0.97\np-value < 2.2e-16") +
-  labs(y="observed heterozygosity", title = "",
-       x="PC1 (centered and folded)")
+  geom_text(x=0.1, y=0.55, label="r=-0.96\np-value < 2.2e-16") +
+  labs(y="observed heterozygosity", title = "", x="PC1 (centered and folded)")
 
-p3 = ggplot() + 
-  geom_point(data = lg3_data, aes(x=PC1, y=O_HET), color="grey60", alpha=0.8) +
-  geom_point(data = lg3_data[lg3_data$Population %in% c("SCO-HAR*", "GBR-GRO*", "FRA-VEY*"),],aes(x=PC1, y=O_HET, color=Population), alpha=0.6) +
-  scale_color_manual(values = my3pop_colo) +
-  labs(y="observed heterozygosity", title="",
-       x="PC1 (centered and folded)")
-
-### Figure panels 
+## plot
 row1 = ggarrange(ncol=3, nrow=1, 
                  LG12sex_pca.plot + geom_text(aes(x=-0.02, y=0), label="XX", size=4) +
                    geom_text(aes(x=0.03, y=0), label="XY", size=4) + 
@@ -222,13 +216,126 @@ row2 = ggarrange(ncol=2, nrow=1,
                  p3 + theme(title = element_text(size=10)),
                  p2.2 + theme(title = element_text(size=10)), 
                  widths = c(1, 1), labels = c("D)", "E)"))
-pdf("../../LG3_introgression_Figures/Fig_Feng887_pcasex_Y.pdf", width = 11, height = 6)
-png("../../LG3_introgression_Figures/Fig_Feng887_pcasex_Y.png", width = 8, height = 5, units = "in", res=600)
 ggarrange(ncol=1, nrow=2, row1, row2)
-dev.off()
+
+
+########################### PCA of EU pops sexed by the other SDR ###############################
+module load samtools
+module load vcftools
+module load plink 
+## excluding POL-GDY (which would include sex signal)
+cat ../../scripts/Feng887/LG3_ID.list | grep -v POL > LG3_ID_noPOL.list
+cat ../../scripts/Feng887/LG12_ID.list | grep -v POL > LG12_ID_noPOL.list
+
+for chr in 3 12
+do
+if [ $chr == 3 ]
+then
+pop=12
+else
+pop=3
+fi
+
+bcftools view ../Feng887_LG${chr}sex_a1m3.vcf.gz -S LG${pop}_ID_noPOL.list -Oz -o Feng887_LG${chr}sex_a1m3_LG${pop}pop_noPOL.vcf.gz
+vcftools --gzvcf Feng887_LG${chr}sex_a1m3_LG${pop}pop_noPOL.vcf.gz --missing-indv --out Feng887_LG${chr}sex_a1m3_LG${pop}pop_noPOL
+plink2 --vcf Feng887_LG${chr}sex_a1m3_LG${pop}pop_noPOL.vcf.gz --pca  --allow-extra-chr --out Feng887_LG${chr}sex_a1m3_LG${pop}pop_noPOL
+
+## plot in R
+library(mapdata)
+library(maptools)
+library(dplyr)
+library(ggsn)
+library(PBSmapping)
+library(data.table)
+library(ggrepel)
+library(ggplot2)
+library(ggpubr)
+my.map = function(sif, ...) {
+  xmin = min(sif$long_ling) - 1
+  xmax = max(sif$long_ling) + 1
+  ymin = min(sif$lat_ling) - 1
+  ymax = max(sif$lat_ling) + 1
+  
+  world = map_data("world")
+  setnames(world, c("X","Y","PID","POS","region","subregion"))
+  map = clipPolys(world, xlim=c(xmin, xmax), ylim=c(ymin, ymax), keepExtra=TRUE)
+  
+  mercator = ggplot() + coord_map(xlim=c(xmin, xmax), ylim=c(ymin, ymax)) + 
+    geom_polygon(data=map, aes(X,Y,group=PID), fill="grey97", color="grey50") + 
+    theme_void() 
+  return(mercator)
+}
+mercator = my.map(pop[!(pop$Population %in% non_EU),]) 
+
+my.pop.col = c("DEN-RES"="#990000", "NOR-TYR"="#d7301f", "SWE-LUN"="#ef6548", "SWE-BOL"="#ec7014", "SWE-GOT"="#fec44f", "LAT-JAU"="#f7f7b9", "EST-PUR"="#d9f0a3", "FIN-HEL"="#addd8e", "FIN-HAM"="#78c679", "FIN-KIV"="#41ab5d", "FIN-SEI"="#238443", "FIN-TVA"="#006837", "SWE-ABB"="#a6bddb", "SWE-BYN"="#67a9cf", "SWE-HAN"="#3690c0", "SWE-KIR"="#02818a", "SWE-NAV"="#7bccc4", "FIN-KAR"="#4eb3d3", "FIN-RII"="#2b8cbe", "FIN-RYT"="#0868ac", "RUS-BOL"="#2171b5", "RUS-KRU"="#08519c", "RUS-MAS"="#08306b", "RUS-LEV"="#08306b", "FIN-KRK"="#88419d", "FIN-PYO"="#810f7c", "FIN-KEV"="#fa9fb5", "FIN-PUL"="#f768a1", "FIN-UKO"="#dd3497",
+               ## note that same colors reused below
+"BEL-MAL"="#d7301f", "DEN-NOR"="#ec7014", "FRA-VEY"= "#f768a1", "NOR-UGE"="#88419d", "GER-RUE"="#fec44f", "NOR-ENG"="#addd8e", "NOR-KVN"="#41ab5d", "SWE-FIS"="#006837", "SCO-HAR"="#4eb3d3", "GBR-GRO"="#08519c")
+
+for (chr in c(12, 3)){
+  title = ifelse(chr==3, "LG3:17260000-17340000", "LG12:1-16900000")
+  p = ifelse(chr=="3", 12, 3)
+  data = paste0("Feng887_LG", chr, "sex_a1m3_LG", p, "pop_noPOL")
+  pca = read.table(paste0(data, ".eigenvec"))
+  miss = read.table(paste0(data, ".imiss"), header=1)
+  names(pca) =c("ID", paste0("PC", 1:(ncol(pca)-1)))
+  pca = merge(pca, miss, by.x="ID", by.y="INDV")
+  pca = merge(pca, sif887, by.x="ID", by.y="SampleID")
+  eig=read.table(paste0(data, ".eigenval"))
+  
+  assign(paste0("LG", chr, "SDR_pop", p, "_PCA_sex.plot"), ggplot() +
+           geom_point(data=pca[pca$Population != "POL-GDY",], 
+                      aes(x=PC1, y=PC2, fill=sex), size=2, stroke=0.3, alpha=0.5, shape=21) +
+           geom_text(data=pca[pca$Population == "POL-GDY", ], 
+                     aes(x=PC1, y=PC2, color=sex, label=Population), size=2) +
+           scale_fill_manual(values = c("Female"="indianred", "Male"="royalblue")) +
+           scale_color_manual(values = c("Female"="indianred", "Male"="royalblue"), guide="none") +
+           geom_hline(yintercept=0, color="grey60", linewidth=0.1) + 
+           geom_vline(xintercept=0, color="grey60", linewidth=0.1) +
+           labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), 
+                y=paste0("PC2: ", round(eig[2,1]/sum(eig)*100),"%"),
+                title=title) + theme_bw() +
+           theme(legend.background = element_rect(fill = "transparent")))
+  
+  assign(paste0("LG", chr, "SDR_pop", p, "_PCA_miss.plot"), ggplot() +
+           geom_point(data=pca, aes(x=PC1, y=PC2, fill=F_MISS), size=2, stroke=0.3, alpha=0.5, shape=21) +
+           geom_hline(yintercept=0, color="grey60", linewidth=0.1) + 
+           geom_vline(xintercept=0, color="grey60", linewidth=0.1) +
+           labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), 
+                y=paste0("PC2: ", round(eig[2,1]/sum(eig)*100),"%"),
+                title=title) + theme_bw() +
+           theme(legend.background = element_rect(fill = "transparent")))
+  
+    assign(paste0("LG", chr, "SDR_pop", p, "_PCA_pop.plot"), ggplot() +
+             geom_point(data=pca[pca$Population %in% pop[pop$Ecotype =="Marine", "Population"], ], 
+                        aes(x=PC1, y=PC2, fill=Population), shape=21, size=2, stroke=0.3, alpha=0.5) +
+             geom_point(data=pca[!(pca$Population %in% pop[pop$Ecotype =="Marine", "Population"]), ], 
+                        aes(x=PC1, y=PC2, fill=Population), shape=24, size=2, stroke=0.3, alpha=0.5) +
+             scale_fill_manual(values=my.pop.col, breaks = names(my.pop.col)) +
+             geom_hline(yintercept=0, color="grey60", linewidth=0.1) + 
+             geom_vline(xintercept=0, color="grey60", linewidth=0.1) +
+             labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), 
+                  y=paste0("PC2: ", round(eig[2,1]/sum(eig)*100),"%"),
+                  title=title) + theme_bw() +
+             theme(legend.background = element_rect(fill = "transparent")))
+    
+    assign(paste0("LG", chr, "SDR_pop", p, "_map.plot"), mercator + 
+             geom_point(data=pop[pop$Population %in% unique(pca$Population) & pop$Ecotype != "Marine",], aes(x=long_ling, y=lat_ling, fill=Population), shape=24, size=3, stroke=0.2) + 
+             geom_point(data=pop[pop$Population %in% unique(pca$Population) & pop$Ecotype == "Marine",], aes(x=long_ling, y=lat_ling, fill=Population), shape=21, size=3, stroke=0.2) + 
+             guides(fill = guide_legend(override.aes=list(shape = 21))) +
+             scale_fill_manual(values=my.pop.col, breaks = names(my.pop.col)) +
+             theme_void())
+             }
+p1 = ggarrange(ncol=2, nrow=2, 
+          LG3SDR_pop12_PCA_miss.plot, LG12SDR_pop3_PCA_miss.plot,
+          LG3SDR_pop12_PCA_sex.plot, LG12SDR_pop3_PCA_sex.plot)
+p2 = ggarrange(ncol=2, nrow=2,
+          LG3SDR_pop12_PCA_pop.plot + theme(legend.position = "none"), LG3SDR_pop12_map.plot,
+          LG12SDR_pop3_PCA_pop.plot + theme(legend.position = "none"), LG12SDR_pop3_map.plot)
+ggarrange(nrow=2, ncol=1, heights = c(1, 1.5), p1, p2)
 
 
 ########################### the phylogeny dataset and ML trees of SDRs ###############################
+## choose 2-3 representative individuals per population; add 9 outgroups that were also whole-genome sequenced and genotyped in the same way (GATK genotyping was processed on both ingroups and outgroups together)
 ind=tree101
 
 # the LG3 SDR  
@@ -240,9 +347,7 @@ bcftools view -S ${ind}.list ../../v7/v7.LG${chr}.vcf.gz --regions LG3:17260000-
 vcf2phylip.py --input tree101_LG3sex_a1m3.vcf.gz
 
 raxmlHPC -f a -m GTRGAMMA -p 101 -x 101 -# 1000 \
--s tree101_LG3sex_a1m3.min4.phy \
--n tree101_LG3sex_a1m3
-
+-s tree101_LG3sex_a1m3.min4.phy -n tree101_LG3sex_a1m3
 
 # the LG12 SDR
 chr=12
@@ -252,9 +357,6 @@ bcftools view -S ../${ind}.list ../../../v7/v7.LG${chr}.vcf.gz --regions LG12:1-
 
 vcf2phylip.py --input tree101_LG12sex_a1m3.vcf.gz
 
-raxmlHPC-PTHREADS -T 8 \
--f a -m GTRGAMMA -p 101 -x 101 -# 1000 \
--s tree101_LG12sex_a1m3.min4.phy \
--n tree101_LG12sex_a1m3
-
+raxmlHPC-PTHREADS -T 8 -f a -m GTRGAMMA -p 101 -x 101 -# 1000 \
+-s tree101_LG12sex_a1m3.min4.phy -n tree101_LG12sex_a1m3
 
