@@ -1,4 +1,33 @@
+ind237 = read.csv("marine237.csv")
+pop12 = read.csv("marine_pop12.csv")
 
+library(ggplot2)
+library(ggpubr)
+library(scatterpie)
+library(ggrepel)
+
+col.Marine = "#202574"
+col.F = "indianred"
+col.M = "royalblue"
+col.W = "#2a1657"
+col.E = "#e9a64c"
+col.adm6 = c("Denmark"="#2a1657", "Sweden.west"="#665393", "Germany"="#b8add1",
+             "East1"="#e9a64c", "East2"="#ffc475", "Russia"="#a66610")
+col.adm5 = c("Denmark"="#2a1657", "Sweden.west"="#665393", "Germany"="#b8add1",
+             "East"="#e9a64c","Russia"="#a66610")
+col.adm4 = c("Denmark"="#2a1657", "Sweden.west"="#665393", 
+             "East"="#e9a64c","Russia"="#a66610")
+col.adm3 = c("Denmark"="#2a1657", "West"="#665393", "East"="#e9a64c")
+col.adm2 = c("West"="#2a1657", "East"="#e9a64c")
+
+order.long = pop12[order(pop12$long_ling), "Population"]
+order.adm=read.table("auto/adm/order.adm.txt")
+order.adm = order.adm$V1
+col.pop = c("RUS-LEV"="#6a3d9a", 
+            "FIN-HAM"="#cab2d6", "FIN-KIV"="#a6cee3", "FIN-HEL"="#1f78b4", "FIN-TVA"="#33a02c", "FIN-SEI"="#8dd3c7",
+            "SWE-BOL"="#b2df8a", "SWE-GOT"="#ffff99","POL-GDY"="#fdbf6f", "GER-RUE"="#ff7f00", "SWE-FIS"="#fb9a99", 
+            "DEN-NOR"= "#e31a1c")
+            
 ########################################## HIest ##########################################
 ########################################## SNPs fitlering ########################################
 ## DEN_RUS
