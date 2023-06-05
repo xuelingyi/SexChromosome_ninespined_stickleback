@@ -1,6 +1,5 @@
-## these are the scripts used for filtering and generate different datasets
-
-################### biallelic SNPs from the GATK processed data ######################## 
+##################### generate the wild dataset #####################
+biallelic SNPs from the GATK processed data ######################## 
 # the following processing was by chromosome 
 ## get biallelic SNPs
 for chr in {1..21}
