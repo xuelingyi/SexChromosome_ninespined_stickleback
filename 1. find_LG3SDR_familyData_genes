@@ -1,4 +1,7 @@
-########### processing raw reads of the whole-genome sequencing on 128 individuals in 4 family crosses #############
+################################# generate the family dataset #################################
+### 4 family crosses, 128 individuals including 8 parents and 15 F1 offspring per sex per family
+
+########### processing raw reads of the whole-genome sequencing #############
 #### AdaptorRemoval (BGI DNBseq adaptors)
 ind=$(sed -n ${SLURM_ARRAY_TASK_ID}p WL_ind128)
 
@@ -408,7 +411,7 @@ ggplot() +
   labs(x="LG3 position (bp)", y="mean F")
 
 
-######################## validate candidate regions using F and PCA ###########################
+###################### verify candidate regions using individual-based analyses ########################
 LG=3
 region1 = c(14720000, 14790000)
 region2 = c(17260000, 17340000)
