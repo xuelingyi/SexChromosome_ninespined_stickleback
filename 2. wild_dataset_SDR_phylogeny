@@ -241,30 +241,7 @@ vcftools --gzvcf Feng887_LG${chr}sex_a1m3_LG${pop}pop_noPOL.vcf.gz --missing-ind
 plink2 --vcf Feng887_LG${chr}sex_a1m3_LG${pop}pop_noPOL.vcf.gz --pca  --allow-extra-chr --out Feng887_LG${chr}sex_a1m3_LG${pop}pop_noPOL
 
 ## plot in R
-library(mapdata)
-library(maptools)
-library(dplyr)
-library(ggsn)
-library(PBSmapping)
-library(data.table)
-library(ggrepel)
-library(ggplot2)
-library(ggpubr)
-my.map = function(sif, ...) {
-  xmin = min(sif$long_ling) - 1
-  xmax = max(sif$long_ling) + 1
-  ymin = min(sif$lat_ling) - 1
-  ymax = max(sif$lat_ling) + 1
-  
-  world = map_data("world")
-  setnames(world, c("X","Y","PID","POS","region","subregion"))
-  map = clipPolys(world, xlim=c(xmin, xmax), ylim=c(ymin, ymax), keepExtra=TRUE)
-  
-  mercator = ggplot() + coord_map(xlim=c(xmin, xmax), ylim=c(ymin, ymax)) + 
-    geom_polygon(data=map, aes(X,Y,group=PID), fill="grey97", color="grey50") + 
-    theme_void() 
-  return(mercator)
-}
+source("my.map.R")
 mercator = my.map(pop[!(pop$Population %in% non_EU),]) 
 
 my.pop.col = c("DEN-RES"="#990000", "NOR-TYR"="#d7301f", "SWE-LUN"="#ef6548", "SWE-BOL"="#ec7014", "SWE-GOT"="#fec44f", "LAT-JAU"="#f7f7b9", "EST-PUR"="#d9f0a3", "FIN-HEL"="#addd8e", "FIN-HAM"="#78c679", "FIN-KIV"="#41ab5d", "FIN-SEI"="#238443", "FIN-TVA"="#006837", "SWE-ABB"="#a6bddb", "SWE-BYN"="#67a9cf", "SWE-HAN"="#3690c0", "SWE-KIR"="#02818a", "SWE-NAV"="#7bccc4", "FIN-KAR"="#4eb3d3", "FIN-RII"="#2b8cbe", "FIN-RYT"="#0868ac", "RUS-BOL"="#2171b5", "RUS-KRU"="#08519c", "RUS-MAS"="#08306b", "RUS-LEV"="#08306b", "FIN-KRK"="#88419d", "FIN-PYO"="#810f7c", "FIN-KEV"="#fa9fb5", "FIN-PUL"="#f768a1", "FIN-UKO"="#dd3497",
