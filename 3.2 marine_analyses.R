@@ -1,10 +1,26 @@
-ind237 = read.csv("marine237.csv")
-pop12 = read.csv("marine_pop12.csv")
 library(ggplot2)
 library(ggpubr)
 library(scatterpie)
 library(ggrepel)
 
+ind237 = read.csv("marine237.csv")
+pop12 = read.csv("marine_pop12.csv")
+col.W = "#2a1657"
+col.E = "#e9a64c"
+
+##################################################################################################
+############################################# pie charts on map ##########################################
+source("../my.map.R")
+
+## pie charts of SDR in males
+pop12$male_LG3 = sapply(pop12$Population, function(x){ return(nrow(subset(ind237, Population == x & sex == "M" & sex_region == "LG3"))) })
+pop12$male_LG12 = sapply(pop12$Population, function(x){ return(nrow(subset(ind237, Population == x & sex == "M" & sex_region == "LG12"))) })
+my.map(pop12) + geom_scatterpie(data=pop12, aes(x=long_ling, y=lat_ling), cols = c("male_LG12", "male_LG3"), color=NA, alpha=0.8) + scale_fill_manual(values=c("male_LG3"=col.W, "male_LG12"=col.E))
+
+## pie charts of sexes
+pop12$male = sapply(pop12$Population, function(x){ return(nrow(subset(ind237, Population == x & sex == "M"))) })
+pop12$female = sapply(pop12$Population, function(x){ return(nrow(subset(ind237, Population == x & sex == "F"))) })
+my.map(pop12) + geom_scatterpie(data=pop12, aes(x=long_ling, y=lat_ling), cols = c("female", "male"), color=NA, alpha=0.8) + scale_fill_manual(values=c("male"="royalblue", "female"="indianred"))
 ##################################################################################################
 ############################################ plot kinship ###############################################
 king = read.table("marine237_a2m7_no3.12_LD2_a5g1.kin0", header = F)
