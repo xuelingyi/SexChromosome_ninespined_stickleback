@@ -22,8 +22,25 @@ ggarrange(nrow=3, ncol=4,
           FIN_SEI_king, FIN_TVA_king, SWE_GOT_king, SWE_FIS_king, 
           SWE_BOL_king, POL_GDY_king, GER_RUE_king, DEN_NOR_king)
 ##################################################################################################
+############################################ plot admixture CV errors ################################################
+datasets = c("marine237_autosome", "marine_male119_autosome", "marine_female118_autosome", 
+             "marine_female118_LG12SDR", "marine_female118_LG3SDR")
+files = c("./auto/adm/cv_k1.13.txt", "./auto/adm_m/adm_m_cv.txt", "./auto/adm_f/adm_f_cv.txt", 
+          "./sex_region/adm/LG12sexfemale/LG12sexfemale_CV.txt", "./sex_region/adm/LG3sexfemale/LG3sexfemale_CV.txt")
+for (i in 1:5){
+  error = read.table(files[i])
+  if(i == 1){ error = error[, 5:6] } else 
+    { error = error[, 3:4] }
+  colnames(error) = c("K", "CV_error")
+  error$K = gsub("(K=", "", error$K, fixed=T)
+  error$K = gsub("):", "", error$K, fixed=T)
+  assign(paste0(datasets[i], "_CV.plot"), ggplot(data=error, aes(x=K, y=CV_error)) + geom_point(size=0.8) + stat_summary(fun=mean, geom="line", aes(group=1)) + scale_x_discrete(limits=factor(1:max(as.numeric(error$K)))) + labs(title=datasets[i], y="Cross-Validation error"))
+}
+ggarrange(nrow=2, ncol=3, labels = "AUTO",
+          marine237_autosome_CV.plot, marine_male119_autosome_CV.plot, marine_female118_autosome_CV.plot, marine_female118_LG12SDR_CV.plot, marine_female118_LG3SDR_CV.plot)
 ##################################################################################################
-##################################################################################################
+######################################### ADMIXTURE plots #################################################
+
 ##################################################################################################
 ########################################### HIest ###########################################
 library(HIest)
