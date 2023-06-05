@@ -7,6 +7,15 @@ ind237 = read.csv("marine237.csv")
 pop12 = read.csv("marine_pop12.csv")
 col.W = "#2a1657"
 col.E = "#e9a64c"
+col.Sweden.west = "#665393"
+col.Germany="#b8add1"
+col.East2="#ffc475"
+col.Russia="#a66610"
+col.7 = "#fff7bc"
+col.pop = c("RUS-LEV"="#6a3d9a", 
+            "FIN-HAM"="#cab2d6", "FIN-KIV"="#a6cee3", "FIN-HEL"="#1f78b4", "FIN-TVA"="#33a02c", "FIN-SEI"="#8dd3c7",
+            "SWE-BOL"="#b2df8a", "SWE-GOT"="#ffff99","POL-GDY"="#fdbf6f", "GER-RUE"="#ff7f00", "SWE-FIS"="#fb9a99", 
+            "DEN-NOR"= "#e31a1c")
 
 ##################################################################################################
 ############################################# pie charts on map ##########################################
@@ -38,11 +47,11 @@ ggarrange(nrow=3, ncol=4,
           FIN_SEI_king, FIN_TVA_king, SWE_GOT_king, SWE_FIS_king, 
           SWE_BOL_king, POL_GDY_king, GER_RUE_king, DEN_NOR_king)
 ##################################################################################################
-############################################ plot admixture CV errors ################################################
-datasets = c("marine237_autosome", "marine_male119_autosome", "marine_female118_autosome", 
-             "marine_female118_LG12SDR", "marine_female118_LG3SDR")
-files = c("./auto/adm/cv_k1.13.txt", "./auto/adm_m/adm_m_cv.txt", "./auto/adm_f/adm_f_cv.txt", 
-          "./sex_region/adm/LG12sexfemale/LG12sexfemale_CV.txt", "./sex_region/adm/LG3sexfemale/LG3sexfemale_CV.txt")
+############################################ plot ADMIXTURE results ################################################
+datasets = c("marine237_autosome", "marine_male119_autosome", "marine_female118_autosome", "marine_female118_LG12SDR", "marine_female118_LG3SDR")
+
+### CV errors
+files = c("cv_k1.13.txt", "adm_m_cv.txt", "adm_f_cv.txt", "LG12sexfemale_CV.txt", "LG3sexfemale_CV.txt")
 for (i in 1:5){
   error = read.table(files[i])
   if(i == 1){ error = error[, 5:6] } else 
@@ -54,8 +63,71 @@ for (i in 1:5){
 }
 ggarrange(nrow=2, ncol=3, labels = "AUTO",
           marine237_autosome_CV.plot, marine_male119_autosome_CV.plot, marine_female118_autosome_CV.plot, marine_female118_LG12SDR_CV.plot, marine_female118_LG3SDR_CV.plot)
-##################################################################################################
-######################################### ADMIXTURE plots #################################################
+
+## admixture plots
+library(reshape2)
+order.adm=read.table("auto/adm/order.adm.txt")
+order.adm = order.adm$V1
+paths = c("./auto/adm/1675051151/K=", "./auto/adm_m/1677129050/K=", "./auto/adm_f/1677128605/K=", "./sex_region/adm/LG12sexfemale/1683597383/K=", "./sex_region/adm/LG3sexfemale/1683597624/K=")
+IDlists = c("./auto/adm/ID", "./auto/adm_m/ID.m", "./auto/adm_f/ID.f", "./auto/adm_f/ID.f", "./auto/adm_f/ID.f")
+
+for (i in 1:5){
+  ID = read.table(IDlists[i])
+  max = ifelse(i==1, 7, 6)
+  pdf(paste0(datasets[i], "_clum_plot.pdf"))
+  for(K in 2:max){
+    clu_adm = read.table(paste0(paths[i], K, "/CLUMPP.files/ClumppIndFile.output"), row.names = 1)
+    colnames(clu_adm) = c("sample", "zero", "pop", "colon", paste0("cluster",1:K))
+    clu_adm$sample = ID$V1
+    clu_adm = merge(clu_adm, ind237[, c("SampleID", "Population")], by.x ="sample", by.y="SampleID")
+    clu_adm_ordered = clu_adm
+    clu_adm_ordered$sample = factor(clu_adm_ordered$sample, levels=order.adm)
+    clu_adm_plot = clu_adm_ordered[, !colnames(clu_adm_ordered) %in% c("zero", "Population", "pop", "colon")]
+    clu_adm_plot = melt(clu_adm_plot, id.vars="sample")
+    p = ggplot(clu_adm_plot, aes(x=sample, y=value, fill=variable)) + geom_bar(stat="identity") + theme(axis.text.x = element_text(angle=90, size=3), axis.ticks.x = element_blank()) + scale_y_continuous(expand = c(0,0)) + labs(title=paste0("K", K), y="Probability")
+    assign(paste0(datasets[i], "_K", K, "_clu"), p)
+    print(p)}
+  dev.off()}
+
+top.themes = theme(legend.position = "none", axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank())
+
+ggarrange(nrow=6, ncol=1, heights = c(1,1,1,1,1,1.5), 
+          marine237_autosome_K2_clu + top.themes + scale_fill_manual(values=c(col.W, col.E)),
+          marine237_autosome_K3_clu + top.themes + scale_fill_manual(values=c(col.Sweden.west, col.W, col.E)),
+          marine237_autosome_K4_clu + top.themes + scale_fill_manual(values=c(col.W, col.E, col.Russia, col.Sweden.west)),
+          marine237_autosome_K5_clu + top.themes + scale_fill_manual(values=c(col.Sweden.west, col.E, col.Russia, col.W, col.Germany)),
+          marine237_autosome_K6_clu + top.themes + scale_fill_manual(values=c(col.Sweden.west, col.East2, col.Germany, col.E, col.Russia, col.W)),
+          marine237_autosome_K7_clu + theme(legend.position = "none") + scale_fill_manual(values=c(col.Russia, col.W, col.E, col.7, col.Sweden.west, col.Germany, col.East2)))
+
+a = ggarrange(nrow=5, ncol=1, heights = c(1,1,1,1,1.5), 
+              marine_male119_autosome_K2_clu + top.themes + scale_fill_manual(values=c(col.E, col.W)),
+              marine_male119_autosome_K3_clu + top.themes + scale_fill_manual(values=c(col.E, col.W, col.Russia)),
+              marine_male119_autosome_K4_clu + top.themes + scale_fill_manual(values=c(col.Sweden.west, col.W, col.E, col.Russia)),
+              marine_male119_autosome_K5_clu + top.themes + scale_fill_manual(values=c(col.Germany, col.W, col.E, col.Russia, col.Sweden.west)),
+              marine_male119_autosome_K6_clu + theme(legend.position = "none") + scale_fill_manual(values=c(col.Sweden.west, col.Russia, col.Germany, col.W, col.East2, col.E)))
+
+b = ggarrange(nrow=5, ncol=1, heights = c(1,1,1,1,1.5), 
+              marine_female118_autosome_K2_clu + top.themes + scale_fill_manual(values=c(col.E, col.W)),
+              marine_female118_autosome_K3_clu + top.themes + scale_fill_manual(values=c(col.E, col.W, col.Sweden.west)),
+              marine_female118_autosome_K4_clu + top.themes + scale_fill_manual(values=c(col.E, col.Russia, col.Sweden.west, col.W)),
+              marine_female118_autosome_K5_clu + top.themes + scale_fill_manual(values=c(col.Sweden.west, col.W, col.Germany, col.Russia, col.E)),
+              marine_female118_autosome_K6_clu + theme(legend.position = "none") + scale_fill_manual(values=c(col.East2, col.Russia, col.E, col.Sweden.west, col.W, col.Germany)))
+
+c = ggarrange(nrow=5, ncol=1, heights = c(1,1,1,1,1.5), 
+              marine_female118_LG12SDR_K2_clu + top.themes + scale_fill_manual(values=c(col.W, col.E)),
+              marine_female118_LG12SDR_K3_clu + top.themes + scale_fill_manual(values=c(col.W, col.E, col.Sweden.west)),
+              marine_female118_LG12SDR_K4_clu + top.themes + scale_fill_manual(values=c(col.Russia, col.W, col.E, col.Sweden.west)),
+              marine_female118_LG12SDR_K5_clu + top.themes + scale_fill_manual(values=c(col.E, col.Sweden.west, col.Russia, col.Germany, col.W)),
+              marine_female118_LG12SDR_K6_clu + theme(legend.position = "none") + scale_fill_manual(values=c(col.Russia, col.E, col.W, col.East2, col.Sweden.west, col.Germany)))
+
+d = ggarrange(nrow=5, ncol=1, heights = c(1,1,1,1,1.5), 
+              marine_female118_LG3SDR_K2_clu + top.themes + scale_fill_manual(values=c(col.E, col.W)),
+              marine_female118_LG3SDR_K3_clu + top.themes + scale_fill_manual(values=c(col.W, col.E, col.Sweden.west)),
+              marine_female118_LG3SDR_K4_clu + top.themes + scale_fill_manual(values=c(col.Russia, col.W, col.E, col.Sweden.west)),
+              marine_female118_LG3SDR_K5_clu + top.themes + scale_fill_manual(values=c(col.Sweden.west, col.Russia, col.W, col.Germany, col.E)),
+              marine_female118_LG3SDR_K6_clu + theme(legend.position = "none") + scale_fill_manual(values=c(col.W, col.E, col.East2, col.Russia, col.Sweden.west, col.Germany)))
+
+ggarrange(ncol = 2, nrow=2, labels = datasets[2:5], a, b, c, d)
 
 ##################################################################################################
 ########################################### HIest ###########################################
