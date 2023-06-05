@@ -66,10 +66,10 @@ ggarrange(nrow=2, ncol=3, labels = "AUTO",
 
 ## admixture plots
 library(reshape2)
-order.adm=read.table("auto/adm/order.adm.txt")
+order.adm=read.table("order.adm.txt")
 order.adm = order.adm$V1
-paths = c("./auto/adm/1675051151/K=", "./auto/adm_m/1677129050/K=", "./auto/adm_f/1677128605/K=", "./sex_region/adm/LG12sexfemale/1683597383/K=", "./sex_region/adm/LG3sexfemale/1683597624/K=")
-IDlists = c("./auto/adm/ID", "./auto/adm_m/ID.m", "./auto/adm_f/ID.f", "./auto/adm_f/ID.f", "./auto/adm_f/ID.f")
+paths = c("1675051151/K=", "1677129050/K=", "1677128605/K=", "1683597383/K=", "1683597624/K=") # CLUMPAK
+IDlists = c("ID", "ID.m", "ID.f", "ID.f", "ID.f")
 
 for (i in 1:5){
   ID = read.table(IDlists[i])
@@ -128,7 +128,54 @@ d = ggarrange(nrow=5, ncol=1, heights = c(1,1,1,1,1.5),
               marine_female118_LG3SDR_K6_clu + theme(legend.position = "none") + scale_fill_manual(values=c(col.W, col.E, col.East2, col.Russia, col.Sweden.west, col.Germany)))
 
 ggarrange(ncol = 2, nrow=2, labels = datasets[2:5], a, b, c, d)
+##################################################################################################
+########################################### PCA #############################################
+datasets = c("marine237_a2m7_no3.12_LD2_a5g1", "marine237_a2m7_no3.12_LD2_a5g1_m", "marine237_a2m7_no3.12_LD2_a5g1_f",  "female_LG12.marine237.a2m7.LG12sex.g1", "female_LG3.marine237.a2m7.LG3sex.g1")
+titles = c("marine237_a2m7_no3.12_LD2_a5g1", "marine_119males_autosome", "marine_118females_autosome", "female_LG12SDR", "female_LG3SDR")
 
+for (i in 1:5){
+  title=titles[i]
+  pca = read.table(paste0(datasets[i], ".eigenvec"))
+  eig=read.table(paste0(datasets[i], ".eigenval"))
+  if(i == 1) { miss = read.table(paste0(datasets[i], ".vcf.imiss"), header=1)}
+  if(i>=4){ miss = read.table(paste0(datasets[i], ".imiss"), header=1)}
+  if(i<4){ names(pca) =c("FID", "ID", paste0("PC", 1:(ncol(pca)-2))) }
+  if(i>=4){ names(pca) =c("ID", paste0("PC", 1:(ncol(pca)-1))) }
+  pca = merge(pca, miss, by.x="ID", by.y="INDV")
+  pca = merge(pca, ind237[, c("SampleID", "Population", "sex_region", "sex", "adm5")], by.x="ID", by.y="SampleID")
+  
+  assign(paste0(datasets[i], "_pca_miss.plot"), ggplot(pca, aes(x=PC1, y=PC2, color=F_MISS, shape=sex)) +
+           scale_shape_manual(values=c("F"=16, "M"=17))+
+           geom_point(size=2.5, stroke=1, alpha=0.5) +
+           geom_hline(yintercept=0, color="grey60", size=0.1) + 
+           geom_vline(xintercept=0, color="grey60", size=0.1) +
+           labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), y=paste0("PC2: ", round(eig[2,1]/sum(eig)*100),"%"), title=title) + theme_bw() +
+           theme(legend.background = element_rect(fill = "transparent")))
+  if (i<4){
+    assign(paste0(datasets[i], "_pca_pop.plot"), ggplot() +
+             geom_point(data=pca, aes(x=PC1, y=PC2, color=Population, shape=adm5), size=2.5) +
+             scale_color_manual(values = col.pop) +
+             scale_shape_manual(values=c("East"=17, "Denmark"=16, "Germany"=15, "Russia"=3, "Sweden.west"=7))+
+             geom_hline(yintercept=0, color="grey60", size=0.1) + 
+             geom_vline(xintercept=0, color="grey60", size=0.1) +
+             labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), y=paste0("PC2: ", round(eig[2,1]/sum(eig)*100),"%"), title=title) + theme_bw() +
+             theme(legend.background = element_rect(fill = "transparent"))) }
+  if(i >=4){
+    assign(paste0(datasets[i], "_pca_pop.plot"), ggplot() +
+             geom_point(data=pca, aes(x=PC1, y=PC2, fill=Population, shape=sex_region), size=2.5) +
+             scale_fill_manual(values = col.pop) +
+             scale_shape_manual(values=c("LG3"=24, "LG12"=21))+
+             geom_hline(yintercept=0, color="grey60", size=0.1) + 
+             geom_vline(xintercept=0, color="grey60", size=0.1) +
+             labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), y=paste0("PC2: ", round(eig[2,1]/sum(eig)*100),"%"), title=title) + theme_bw() +
+             theme(legend.background = element_rect(fill = "transparent"))) }
+  }
+ggarrange(marine237_a2m7_no3.12_LD2_a5g1_pca_miss.plot, marine237_a2m7_no3.12_LD2_a5g1_pca_pop.plot,
+          marine237_a2m7_no3.12_LD2_a5g1_m_pca_pop.plot, marine237_a2m7_no3.12_LD2_a5g1_f_pca_pop.plot,
+          labels = "AUTO")
+ggarrange(female_LG12.marine237.a2m7.LG12sex.g1_pca_miss.plot, female_LG3.marine237.a2m7.LG3sex.g1_pca_miss.plot,
+          female_LG12.marine237.a2m7.LG12sex.g1_pca_pop.plot, female_LG3.marine237.a2m7.LG3sex.g1_pca_pop.plot,
+          labels = "AUTO")
 ##################################################################################################
 ########################################### HIest ###########################################
 library(HIest)
