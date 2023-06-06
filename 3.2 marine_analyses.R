@@ -320,6 +320,41 @@ POL.plot + labs(x="POL-GDY x Sampling population") +
   scale_color_manual(values=c("between"="grey50", "F"="indianred2", "M"="royalblue"), labels=c("male x female", "female x female", "male x male"), name="IBD-like track") +
   geom_text(aes(x="FIN-HEL"), y=5.1, label="#tracks per comparison per sex")
 
+### adm5
+range(auto19.ibd$geography.km)
+range(auto19.ibd$IBD_length.Mbp)
+adm5 = c("Denmark", "Sweden.west", "Germany", "East", "Russia")
+for (i in 1:5){
+  ID1 = ind237[ind237$adm5 == adm5[i], "SampleID"]
+  for (j in i:5){
+    ID2 = ind237[ind237$adm5 == adm5[j], "SampleID"]
+    data = rbind(subset(auto19.ibd, ind1 %in% ID1 & ind2 %in% ID2), subset(auto19.ibd, ind1 %in% ID2 & ind2 %in% ID1))
+    if(i==j){data = subset(auto19.ibd, ind1 %in% ID1 & ind2 %in% ID1)}
+    assign(paste0("plot", i, j), ggplot(data) + geom_point(aes(x=geography.km, y=IBD_length.Mbp)) + 
+             scale_x_continuous(limits = c(0, 1850))+ scale_y_continuous(limits = c(0, 31)) + theme_bw())
+    if(i != j) {
+    for (sex in c("F", "M")){
+      sub.data = subset(data, sex1 == sex & sex2 == sex)
+      assign(paste0("plot", i, j, sex), ggplot(sub.data) + geom_point(aes(x=geography.km, y=IBD_length.Mbp, color=sex1)) + 
+               scale_x_continuous(limits = c(0, 1850))+ scale_y_continuous(limits = c(0, 31)) + theme_bw() +
+               scale_color_manual(values=c("F"="indianred", "M"="royalblue"), guide="none"))
+      if(nrow(sub.data) > 0){
+        sub.data$compare = paste0(sub.data$ind1, ".", sub.data$ind2)
+        track = as.data.frame(unique(paste0(sub.data$ind1, ".", sub.data$ind2)))
+        track$Ntrack = sapply(track[,1], function(x){ return(nrow(sub.data[sub.data$compare == x, ])) })
+        track$Ltrack = sapply(track[,1], function(x){ return(sum(sub.data[sub.data$compare == x, "IBD_length.Mbp"])) })
+        assign(paste0("track.", i, j, sex), track) }
+    }
+    if(!(i == 2 & j == 5)){ ## the comparison having zero tracks in one sex
+      testN = t.test(get(paste0("track.", i, j, "F"))$Ntrack, get(paste0("track.", i, j, "M"))$Ntrack)
+      if(testN$p.value <= 0.05) {
+        print(paste0("significant Ntrack between sexes in ", adm5[i], " x ", adm5[j]))
+        print(testN) }
+      testL = t.test(get(paste0("track.", i, j, "F"))$Ltrack, get(paste0("track.", i, j, "M"))$Ltrack)
+      if(testL$p.value <= 0.05) {
+        print(paste0("significant Ltrack between sexes in ", adm5[i], " x ", adm5[j]))
+        print(testL) }
+} } } }
 
 ##################################################################################################
 
