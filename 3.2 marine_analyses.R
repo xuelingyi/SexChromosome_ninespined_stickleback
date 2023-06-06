@@ -16,7 +16,8 @@ col.pop = c("RUS-LEV"="#6a3d9a",
             "FIN-HAM"="#cab2d6", "FIN-KIV"="#a6cee3", "FIN-HEL"="#1f78b4", "FIN-TVA"="#33a02c", "FIN-SEI"="#8dd3c7",
             "SWE-BOL"="#b2df8a", "SWE-GOT"="#ffff99","POL-GDY"="#fdbf6f", "GER-RUE"="#ff7f00", "SWE-FIS"="#fb9a99", 
             "DEN-NOR"= "#e31a1c")
-
+order.adm=read.table("order.adm.txt")
+order.adm = order.adm$V1
 ##################################################################################################
 ############################################# pie charts on map ##########################################
 source("../my.map.R")
@@ -66,8 +67,6 @@ ggarrange(nrow=2, ncol=3, labels = "AUTO",
 
 ## admixture plots
 library(reshape2)
-order.adm=read.table("order.adm.txt")
-order.adm = order.adm$V1
 paths = c("1675051151/K=", "1677129050/K=", "1677128605/K=", "1683597383/K=", "1683597624/K=") # CLUMPAK
 IDlists = c("ID", "ID.m", "ID.f", "ID.f", "ID.f")
 
@@ -224,9 +223,103 @@ ggplot(data=HI.ac) +
     geom_segment(aes(x = 0, y = 0, xend = 1, yend = 0)) + 
     geom_segment(aes(x = 0.5, y = 1, xend = 1, yend = 0)) +
     geom_point(aes(x=S, y=H, color=Population)) + 
-    labs(x="S", y="HI", 
-         title = paste0(endpops, "_freq", f/10, ": n=", ninds, ", snps=", nsnps)) +
+    labs(x="S", y="HI", title = paste0(endpops, "_freq", f/10, ": n=", ninds, ", snps=", nsnps)) +
     theme_classic()
 }
+##################################################################################################
+############################################### IBDseq plots ###############################################
+## geographic distance in km
+library("geosphere") 
+eucl = distm(pop12[, c("long_ling", "lat_ling")], pop12[, c("long_ling", "lat_ling")]) ##in meter
+row.names(eucl) = pop12$Population
+colnames(eucl) = pop12$Population
 
+## create metadata
+ibd_metadata = function(myibd, sif, eucl, ...){ ## read in ibd and add pop, sex, sex_region
+  ibd = read.table(myibd)
+  names(ibd) = c("ind1", "haplotype1", "ind2", "haplotype2", "chr", "start", "end", "LOD")
+  ibd$IBD_length = ibd$end - ibd$start
+  ibd$pop1 = NULL
+  ibd$pop2 = NULL
+  ibd$geography.km = NULL
+  ibd$sex1 = NULL
+  ibd$sex2 = NULL
+  ibd$mt1 = NULL
+  ibd$mt2 = NULL
+  for (i in 1:nrow(ibd)) {
+    ibd[i, "pop1"] = sif[sif$SampleID == ibd[i, "ind1"], "Population"]
+    ibd[i, "pop2"] = sif[sif$SampleID == ibd[i, "ind2"], "Population"]
+    ibd[i, "geography.km"] = eucl[ibd[i, "pop1"], ibd[i, "pop2"]]/1000 #change meter to km
+    ibd[i, "sex1"] = sif[sif$SampleID == ibd[i, "ind1"], "sex"]
+    ibd[i, "sex2"] = sif[sif$SampleID == ibd[i, "ind2"], "sex"]
+  }
+  return(ibd)
+}
+auto19.ibd = ibd_metadata("marine237_a2m7_no3.12_LD2_a5g1.lod4.auto.ibd", sif=ind237, eucl = eucl)
+save(auto19.ibd, file="IBDseq.RData")
+
+
+order.adm5 = c("DEN-NOR", "SWE-FIS", "GER-RUE", "POL-GDY", "SWE-GOT", "FIN-HEL", "FIN-SEI", "FIN-TVA", "SWE-BOL", "FIN-HAM", "FIN-KIV", "RUS-LEV")
+color.adm5 = c(col.W, col.Sweden.west, col.Germany, col.E, col.E, col.E, col.E, col.E, col.E, col.E, col.E, col.Russia)
+load("IBDseq/IBDseq.RData")
+names(auto19.ibd)
+auto19.ibd$IBD_length.Mbp = auto19.ibd$IBD_length.bp / 1000000
+
+## LOD-log10length
+ggplot(auto19.ibd) + geom_point(aes(x=log10(IBD_length.bp), y=LOD)) + labs(title=paste0("19 autosomes #track: ", nrow(auto19.ibd))) + theme_bw()
+
+## length-within-pop
+p1 = ggplot()
+for (i in 1:12){
+  pop = order.adm5[i]
+  data = subset(auto19.ibd, pop1 == pop & pop2 == pop)
+  p1 = p1 + geom_jitter(data=data, aes(x=pop1, y=IBD_length.Mbp), color=color.adm5[i], size=0.8) + geom_violin(data=data, aes(x=pop1, y=IBD_length.Mbp), color="black", fill=NA) 
+}
+p1 + labs(x="Sampling population") + scale_x_discrete(limits = order.adm5) + theme_bw() + theme(axis.text.x = element_text(angle=90))
+
+## POLGDY
+ibd.POL = auto19.ibd[auto19.ibd$pop1 == "POL-GDY" | auto19.ibd$pop2 == "POL-GDY", ]
+ibd.POL$type = "between"
+for (i in 1:nrow(ibd.POL)){
+  if (ibd.POL[i, "sex1"] == ibd.POL[i, "sex2"]){
+    if(ibd.POL[i, "sex1"] == "F"){ibd.POL[i, "type"] = "F"}
+    if(ibd.POL[i, "sex1"] == "M"){ibd.POL[i, "type"] = "M"}
+} }
+
+POL.plot = ggplot() + ylim(0,5)
+for (pop in order.adm5){
+  data = rbind(ibd.POL[ibd.POL$pop1 == pop, ], ibd.POL[ibd.POL$pop2 == pop, ])
+  if (pop == "POL-GDY"){data =ibd.POL[ibd.POL$pop1 == ibd.POL$pop2,] }
+  data$compare = paste0(data$ind1, ".", data$ind2)
+  for (sex in c("F", "M")){
+    sub.data = subset(data, type == sex)
+    track = as.data.frame(unique(paste0(sub.data$ind1, ".", sub.data$ind2)))
+    track$Ntrack = sapply(track[,1], function(x){ return(nrow(data[data$compare == x, ])) })
+    track$Ltrack = sapply(track[,1], function(x){ return(sum(data[data$compare == x, "IBD_length.Mbp"])) })
+    assign(paste0("track.", sex), track)
+    assign(paste0("norm.ntrack.", sex), round(mean(track$Ntrack), 2))
+    assign(paste0("norm.ltrack.", sex), round(mean(track$Ltrack), 2))
+  }
+  testN = t.test(track.F$Ntrack, track.M$Ntrack)
+  if(testN$p.value <= 0.05) {
+    print(paste0("significant Ntrack between sexes in POL-GDY x ", pop))
+    print(testN)
+  }
+  testL = t.test(track.F$Ltrack, track.M$Ltrack)
+  if(testL$p.value <= 0.05) {
+    print(paste0("significant Ltrack between sexes in POL-GDY x ", pop))
+    print(testL)}
+  POL.plot = POL.plot + geom_jitter(data=data, aes(x=ifelse(pop1 == "POL-GDY", pop2, pop1), y=IBD_length.Mbp, color=type), size=1, alpha=0.6) +
+    geom_violin(data=data, aes(x=ifelse(pop1 == "POL-GDY", pop2, pop1), y=IBD_length.Mbp), fill=alpha("white", 0)) +
+    geom_text(data=data, aes(x=ifelse(pop1 == "POL-GDY", pop2, pop1)),  y=4.8, label=norm.ntrack.F, color="indianred2") +
+    geom_text(data=data, aes(x=ifelse(pop1 == "POL-GDY", pop2, pop1)),  y=4.5, label=norm.ntrack.M, color="royalblue")
+}
+POL.plot + labs(x="POL-GDY x Sampling population") +
+  theme_bw() + theme(plot.title = element_text(size=10), axis.title = element_text(size=10), axis.text = element_text(size=8), axis.text.x = element_text(angle=90)) +
+  scale_x_discrete(limits=order.adm5) +
+  scale_color_manual(values=c("between"="grey50", "F"="indianred2", "M"="royalblue"), labels=c("male x female", "female x female", "male x male"), name="IBD-like track") +
+  geom_text(aes(x="FIN-HEL"), y=5.1, label="#tracks per comparison per sex")
+
+
+##################################################################################################
 
