@@ -290,18 +290,18 @@ auto19.heatmap.full = rbind(auto19.heatmap, auto19.heatmap2)
 any(duplicated(auto19.heatmap.full))
 
 ggplot(data=auto19.heatmap.full, aes(ind1, ind2, fill= log10(sum.IBD_length.Mbp))) + 
-  theme(axis.text.x = element_text(angle=90)) + geom_tile() + 
+  theme(axis.text.x = element_text(angle=90, size=0.1)) + theme(axis.text.y = element_text(size=0.1)) + geom_tile() + 
   scale_x_discrete(limits=order.adm) + scale_y_discrete(limits=order.adm) + scale_fill_gradient(low = "#efedf5", high = "#3f007d")
 
 ## within sex
 ind237$SampleID = factor(ind237$SampleID, levels = order.adm)
 ind237 = ind237[order(ind237$SampleID),]
 female = ggplot(data=subset(auto19.heatmap.full, sex1=="F" & sex2=="F"), aes(ind1, ind2, fill= log10(sum.IBD_length.Mbp))) + 
-  theme(axis.text.x = element_text(angle=90)) + geom_tile() + 
+  theme(axis.text.x = element_text(angle=90, size=0.1)) + theme(axis.text.y = element_text(size=0.1)) + geom_tile() + 
   scale_x_discrete(limits=ind237[ind237$sex == "F", "SampleID"]) +  scale_y_discrete(limits=ind237[ind237$sex == "F", "SampleID"]) +
   scale_fill_gradient(low = "#fee0d2", high = "#67000d")
 male = ggplot(data=subset(auto19.heatmap.full, sex1=="M" & sex2=="M"), aes(ind1, ind2, fill= log10(sum.IBD_length.Mbp))) + 
-  theme(axis.text.x = element_text(angle=90)) + geom_tile() + 
+  theme(axis.text.x = element_text(angle=90, size=0.1)) + theme(axis.text.y = element_text(size=0.1)) + geom_tile() + 
   scale_x_discrete(limits=ind237[ind237$sex == "M", "SampleID"]) + scale_y_discrete(limits=ind237[ind237$sex == "M", "SampleID"]) +
   scale_fill_gradient(low = "#d3e1ff", high = "#061539")
 ggarrange(ncol=2, nrow = 1, male, female)
