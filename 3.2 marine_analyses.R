@@ -258,7 +258,7 @@ ibd_metadata = function(myibd, sif, eucl, ...){ ## read in ibd and add pop, sex,
 auto19.ibd = ibd_metadata("marine237_a2m7_no3.12_LD2_a5g1.lod4.auto.ibd", sif=ind237, eucl = eucl)
 save(auto19.ibd, file="IBDseq.RData")
 
-
+## load data
 order.adm5 = c("DEN-NOR", "SWE-FIS", "GER-RUE", "POL-GDY", "SWE-GOT", "FIN-HEL", "FIN-SEI", "FIN-TVA", "SWE-BOL", "FIN-HAM", "FIN-KIV", "RUS-LEV")
 color.adm5 = c(col.W, col.Sweden.west, col.Germany, col.E, col.E, col.E, col.E, col.E, col.E, col.E, col.E, col.Russia)
 load("IBDseq/IBDseq.RData")
@@ -267,6 +267,44 @@ auto19.ibd$IBD_length.Mbp = auto19.ibd$IBD_length.bp / 1000000
 
 ## LOD-log10length
 ggplot(auto19.ibd) + geom_point(aes(x=log10(IBD_length.bp), y=LOD)) + labs(title=paste0("19 autosomes #track: ", nrow(auto19.ibd))) + theme_bw()
+
+## heatmap by ind
+auto19.ibd$pair = paste0(auto19.ibd$ind1, "_", auto19.ibd$ind2, "_", auto19.ibd$sex1, "_", auto19.ibd$sex2, "_", auto19.ibd$sex_region1, "_", auto19.ibd$sex_region2)
+auto19.heatmap = as.data.frame(unique(auto19.ibd$pair))
+names(auto19.heatmap) = "pair"
+auto19.heatmap$sum.IBD_length.Mbp = sapply(auto19.heatmap$pair, function(x){ return(sum(auto19.ibd[auto19.ibd$pair == x, "IBD_length.Mbp"]))} )
+auto19.heatmap$ind1 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[1])
+auto19.heatmap$ind2 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[2])
+auto19.heatmap$sex1 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[3])
+auto19.heatmap$sex2 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[4])
+auto19.heatmap$sex_region1 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[5])
+auto19.heatmap$sex_region2 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[6])
+auto19.heatmap2 = auto19.heatmap
+auto19.heatmap2$ind1 = auto19.heatmap$ind2
+auto19.heatmap2$sex1 = auto19.heatmap$sex2
+auto19.heatmap2$sex_region1 = auto19.heatmap$sex_region2
+auto19.heatmap2$ind2 = auto19.heatmap$ind1
+auto19.heatmap2$sex2 = auto19.heatmap$sex1
+auto19.heatmap2$sex_region2 = auto19.heatmap$sex_region1
+auto19.heatmap.full = rbind(auto19.heatmap, auto19.heatmap2)
+any(duplicated(auto19.heatmap.full))
+
+ggplot(data=auto19.heatmap.full, aes(ind1, ind2, fill= log10(sum.IBD_length.Mbp))) + 
+  theme(axis.text.x = element_text(angle=90)) + geom_tile() + 
+  scale_x_discrete(limits=order.adm) + scale_y_discrete(limits=order.adm) + scale_fill_gradient(low = "#efedf5", high = "#3f007d")
+
+## within sex
+ind237$SampleID = factor(ind237$SampleID, levels = order.adm)
+ind237 = ind237[order(ind237$SampleID),]
+female = ggplot(data=subset(auto19.heatmap.full, sex1=="F" & sex2=="F"), aes(ind1, ind2, fill= log10(sum.IBD_length.Mbp))) + 
+  theme(axis.text.x = element_text(angle=90)) + geom_tile() + 
+  scale_x_discrete(limits=ind237[ind237$sex == "F", "SampleID"]) +  scale_y_discrete(limits=ind237[ind237$sex == "F", "SampleID"]) +
+  scale_fill_gradient(low = "#fee0d2", high = "#67000d")
+male = ggplot(data=subset(auto19.heatmap.full, sex1=="M" & sex2=="M"), aes(ind1, ind2, fill= log10(sum.IBD_length.Mbp))) + 
+  theme(axis.text.x = element_text(angle=90)) + geom_tile() + 
+  scale_x_discrete(limits=ind237[ind237$sex == "M", "SampleID"]) + scale_y_discrete(limits=ind237[ind237$sex == "M", "SampleID"]) +
+  scale_fill_gradient(low = "#d3e1ff", high = "#061539")
+ggarrange(ncol=2, nrow = 1, male, female)
 
 ## length-within-pop
 p1 = ggplot()
@@ -320,21 +358,6 @@ POL.plot + labs(x="POL-GDY x Sampling population") +
   scale_color_manual(values=c("between"="grey50", "F"="indianred2", "M"="royalblue"), labels=c("male x female", "female x female", "male x male"), name="IBD-like track") +
   geom_text(aes(x="FIN-HEL"), y=5.1, label="#tracks per comparison per sex")
 
-## heatmap
-auto19.ibd2 = auto19.ibd
-auto19.ibd2$ind2.2 = auto19.ibd2$ind2
-auto19.ibd2$ind2 = auto19.ibd2$ind1
-auto19.ibd2$ind1 = auto19.ibd2$ind2.2
-auto19.ibd2$pop2.2 = auto19.ibd2$pop2
-auto19.ibd2$pop2 = auto19.ibd2$pop1
-auto19.ibd2$pop1 = auto19.ibd2$pop2.2
-auto19.ibd.full = rbind(auto19.ibd, auto19.ibd2[, 1:17])
-auto19.ibd.full = auto19.ibd.full[!(duplicated(auto19.ibd.full)),]
-
-ggplot(data=auto19.ibd.full, aes(ind1, ind2, fill= log10(IBD_length.bp))) + 
-  theme(axis.text.x = element_text(angle=90)) + geom_tile() + 
-  scale_x_discrete(limits=order.adm) + scale_y_discrete(limits=order.adm)
-
 ### adm5
 range(auto19.ibd$geography.km)
 range(auto19.ibd$IBD_length.Mbp)
@@ -381,7 +404,13 @@ col.ibd = c("Male3 x Male3"="#08306b", "Male3 x Female"="#6baed6", "Male12 x Mal
 load("sex_region/IBDseq/LG3_IBDseq.RData")
 load("sex_region/IBDseq/LG12_IBDseq.RData")
 load("IBDseq/IBDseq.RData")
-
+                                    
+lod3 = ggplot(lg3.ibd) + geom_point(aes(x=log10(IBD_length), y=LOD), size=1) + 
+  labs(title=paste0("LG3 #track: ", nrow(lg3.ibd)), x="log10(IBD_length.bp)") + theme_bw()
+lod12 = ggplot(lg12.ibd) + geom_point(aes(x=log10(IBD_length), y=LOD), size=1) + 
+  labs(title=paste0("LG12 #track: ", nrow(lg12.ibd)), x="log10(IBD_length.bp)") + theme_bw()
+ggarrange(nrow=1, ncol=2, lod3, lod12)
+                                    
 for(chr in c(1:21)){
   if(chr %in% c(3, 12)){
     ibd = get(paste0("lg", chr, ".ibd"))
