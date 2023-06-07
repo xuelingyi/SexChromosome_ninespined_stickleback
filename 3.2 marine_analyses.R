@@ -320,6 +320,21 @@ POL.plot + labs(x="POL-GDY x Sampling population") +
   scale_color_manual(values=c("between"="grey50", "F"="indianred2", "M"="royalblue"), labels=c("male x female", "female x female", "male x male"), name="IBD-like track") +
   geom_text(aes(x="FIN-HEL"), y=5.1, label="#tracks per comparison per sex")
 
+## heatmap
+auto19.ibd2 = auto19.ibd
+auto19.ibd2$ind2.2 = auto19.ibd2$ind2
+auto19.ibd2$ind2 = auto19.ibd2$ind1
+auto19.ibd2$ind1 = auto19.ibd2$ind2.2
+auto19.ibd2$pop2.2 = auto19.ibd2$pop2
+auto19.ibd2$pop2 = auto19.ibd2$pop1
+auto19.ibd2$pop1 = auto19.ibd2$pop2.2
+auto19.ibd.full = rbind(auto19.ibd, auto19.ibd2[, 1:17])
+auto19.ibd.full = auto19.ibd.full[!(duplicated(auto19.ibd.full)),]
+
+ggplot(data=auto19.ibd.full, aes(ind1, ind2, fill= log10(IBD_length.bp))) + 
+  theme(axis.text.x = element_text(angle=90)) + geom_tile() + 
+  scale_x_discrete(limits=order.adm) + scale_y_discrete(limits=order.adm)
+
 ### adm5
 range(auto19.ibd$geography.km)
 range(auto19.ibd$IBD_length.Mbp)
