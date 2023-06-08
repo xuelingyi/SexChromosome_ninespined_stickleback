@@ -467,7 +467,7 @@ any(duplicated(auto19.heatmap.full))
 ## all IBD-tracks 
 ggplot(data=auto19.heatmap.full, aes(ind1, ind2, fill= log10(sum.IBD_length.Mbp))) + theme_bw() + geom_tile() + 
   theme(axis.text.x = element_text(angle=90, size=0.5), axis.text.y = element_text(size=0.5), axis.ticks = element_blank()) +
-  scale_x_discrete(limits=order.adm, expand = c(0.01, 0.01)) + scale_y_discrete(limits=order.adm, expand = c(0.01, 0.01)) +
+  scale_x_discrete(limits=order.adm) + scale_y_discrete(limits=order.adm) +
   scale_fill_gradient(low = "#efedf5", high = "#3f007d") 
 
 ## separate by sex
