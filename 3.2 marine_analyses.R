@@ -227,7 +227,7 @@ ggplot(data=HI.ac) +
     theme_classic()
 }
 ##################################################################################################
-############################################### IBDseq plots ###############################################
+############################################### IBDseq metadata ###############################################
 ## geographic distance in km
 library("geosphere") 
 eucl = distm(pop12[, c("long_ling", "lat_ling")], pop12[, c("long_ling", "lat_ling")]) ##in meter
@@ -258,53 +258,241 @@ ibd_metadata = function(myibd, sif, eucl, ...){ ## read in ibd and add pop, sex,
 auto19.ibd = ibd_metadata("marine237_a2m7_no3.12_LD2_a5g1.lod4.auto.ibd", sif=ind237, eucl = eucl)
 save(auto19.ibd, file="IBDseq.RData")
 
-## load data
-order.adm5 = c("DEN-NOR", "SWE-FIS", "GER-RUE", "POL-GDY", "SWE-GOT", "FIN-HEL", "FIN-SEI", "FIN-TVA", "SWE-BOL", "FIN-HAM", "FIN-KIV", "RUS-LEV")
-color.adm5 = c(col.W, col.Sweden.west, col.Germany, col.E, col.E, col.E, col.E, col.E, col.E, col.E, col.E, col.Russia)
-load("IBDseq/IBDseq.RData")
-names(auto19.ibd)
-auto19.ibd$IBD_length.Mbp = auto19.ibd$IBD_length.bp / 1000000
+lg3.ibd = ibd_metadata("LG3.marine237.a2m7.lod4.ibd", sif=ind237, eucl=eucl)
+save(lg3.ibd, file="LG3_IBDseq.RData")
+lg12.ibd = ibd_metadata("LG12.marine237.a2m7.lod4.ibd", sif=ind237, eucl=eucl)
+save(lg12.ibd, file="LG12_IBDseq.RData")
+
+####################################### IBD by chr ##############################################
+## type of males
+male3 = ind237[ind237$sex == "M" & ind237$sex_region == "LG3", "SampleID"]
+male12 = ind237[ind237$sex == "M" & ind237$sex_region == "LG12", "SampleID"]
+col.ibd = c("Male3 x Male3"="#08306b", "Male3 x Female"="#6baed6", "Male12 x Male12"="#662506", "Male12 x Female"="#fe9929", "Male3 x Male12" = "#41ab5d", "Female x Female" = "#dd3497")
+
+load("LG3_IBDseq.RData")
+load("LG12_IBDseq.RData")
+load("IBDseq.RData")
 
 ## LOD-log10length
-ggplot(auto19.ibd) + geom_point(aes(x=log10(IBD_length.bp), y=LOD)) + labs(title=paste0("19 autosomes #track: ", nrow(auto19.ibd))) + theme_bw()
+auto = ggplot(auto19.ibd) + geom_point(aes(x=log10(IBD_length.bp), y=LOD), size=1) + labs(title=paste0("19 autosomes #track: ", nrow(auto19.ibd))) + theme_bw()
+lod3 = ggplot(lg3.ibd) + geom_point(aes(x=log10(IBD_length), y=LOD), size=1) + labs(title=paste0("LG3 #track: ", nrow(lg3.ibd)), x="log10(IBD_length.bp)") + theme_bw()
+lod12 = ggplot(lg12.ibd) + geom_point(aes(x=log10(IBD_length), y=LOD), size=1) + labs(title=paste0("LG12 #track: ", nrow(lg12.ibd)), x="log10(IBD_length.bp)") + theme_bw()
+ggarrange(nrow=1, ncol=3, auto, lod3, lod12)
 
-## heatmap by ind
-auto19.ibd$pair = paste0(auto19.ibd$ind1, "_", auto19.ibd$ind2, "_", auto19.ibd$sex1, "_", auto19.ibd$sex2, "_", auto19.ibd$sex_region1, "_", auto19.ibd$sex_region2)
+auto19.ibd$type = apply(auto19.ibd, 1, function(x){
+  if(x[1] %in% male3 & x[3] %in% male3) {return("Male3 x Male3")}
+  if(x[1] %in% male12 & x[3] %in% male12) {return("Male12 x Male12")}
+  if(x[1] %in% male3 & x[3] %in% male12) {return("Male3 x Male12")}
+  if(x[1] %in% male12 & x[3] %in% male3) {return("Male3 x Male12")}
+  if(x[13] == "F" & x[14] == "F") {return("Female x Female")}
+  if(x[1] %in% male12 & x[14] == "F") {return("Male12 x Female")}
+  if(x[13] == "F" & x[3] %in% male12) {return("Male12 x Female")}
+  if(x[1] %in% male3 & x[14] == "F") {return("Male3 x Female")}
+  if(x[13] == "F" & x[3] %in% male3) {return("Male3 x Female")}
+})
+lg3.ibd$type = apply(lg3.ibd, 1, function(x){
+    if(x[1] %in% male3 & x[3] %in% male3) {return("Male3 x Male3")}
+    if(x[1] %in% male12 & x[3] %in% male12) {return("Male12 x Male12")}
+    if(x[1] %in% male3 & x[3] %in% male12) {return("Male3 x Male12")}
+    if(x[1] %in% male12 & x[3] %in% male3) {return("Male3 x Male12")}
+    if(x[13] == "F" & x[14] == "F") {return("Female x Female")}
+    if(x[1] %in% male12 & x[14] == "F") {return("Male12 x Female")}
+    if(x[13] == "F" & x[3] %in% male12) {return("Male12 x Female")}
+    if(x[1] %in% male3 & x[14] == "F") {return("Male3 x Female")}
+    if(x[13] == "F" & x[3] %in% male3) {return("Male3 x Female")}
+  })
+lg12.ibd$type = apply(lg12.ibd, 1, function(x){
+  if(x[1] %in% male3 & x[3] %in% male3) {return("Male3 x Male3")}
+  if(x[1] %in% male12 & x[3] %in% male12) {return("Male12 x Male12")}
+  if(x[1] %in% male3 & x[3] %in% male12) {return("Male3 x Male12")}
+  if(x[1] %in% male12 & x[3] %in% male3) {return("Male3 x Male12")}
+  if(x[13] == "F" & x[14] == "F") {return("Female x Female")}
+  if(x[1] %in% male12 & x[14] == "F") {return("Male12 x Female")}
+  if(x[13] == "F" & x[3] %in% male12) {return("Male12 x Female")}
+  if(x[1] %in% male3 & x[14] == "F") {return("Male3 x Female")}
+  if(x[13] == "F" & x[3] %in% male3) {return("Male3 x Female")}
+})
+
+## v7 centromeric regions
+centromere = read.csv("Kivikoski2021_TableS1_centromere.csv")
+for(chr in c(1:21)){
+  if(chr %in% c(3, 12)){
+    ibd = get(paste0("lg", chr, ".ibd"))
+  } else {
+    ibd = auto19.ibd[auto19.ibd$chr == paste0("LG", chr), ]
+  }
+  ibd = ibd[order(ibd$LOD),]
+  ibd$row = 1:nrow(ibd)
+  
+  if(chr == 3) {
+    sdr = c(17260000, 17340000)
+    assign(paste0("LG", chr, ".ibd"), ibd)}
+  if(chr == 12) {
+    sdr = c(1, 16900000)
+    assign(paste0("LG", chr, ".ibd"), ibd)}
+  
+  assign(paste0("ibd", chr, ".plot"), ggplot(data=ibd) + 
+           geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
+           scale_color_manual(values=col.ibd, breaks=c("Male3 x Male3", "Male3 x Female",  "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
+           geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "Start.bp"]) +
+           geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "End.bp"]) +
+           theme_classic() + theme(axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
+           labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track", title=paste0("#tracks per Mbp: ", round(1000000*nrow(ibd)/max(c(ibd$start, ibd$end)),2)))
+)
+  if(chr %in% c(3, 12)) {
+    assign(paste0("ibd", chr, ".plot"), ggplot(data=ibd) + 
+             geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
+             scale_color_manual(values=col.ibd, breaks=c("Male3 x Male3", "Male3 x Female", "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
+             geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "Start.bp"]) +
+             geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "End.bp"]) +
+             geom_vline(xintercept = sdr[1], color="red", linetype="dashed") +
+             geom_vline(xintercept = sdr[2], color="red", linetype="dashed") +
+             theme_classic() + theme(axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
+             labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track", title=paste0("#tracks per Mbp: ", round(1000000*nrow(ibd)/max(c(ibd$start, ibd$end)),2)))
+    ) 
+  }
+}
+ggarrange(ncol=3, nrow=7, 
+          ibd1.plot, ibd2.plot, ibd3.plot,
+          ibd4.plot, ibd5.plot, ibd6.plot,
+          ibd7.plot, ibd8.plot, ibd9.plot,
+          ibd10.plot, ibd11.plot, ibd12.plot,
+          ibd13.plot, ibd14.plot, ibd15.plot,
+          ibd16.plot, ibd17.plot, ibd18.plot,
+          ibd19.plot, ibd20.plot, ibd21.plot)
+
+### only sex chromosomes, in each sexed populations (without POL-GDY)
+lg3pop =c("DEN-NOR", "GER-RUE", "SWE-FIS")
+lg12pop = c("FIN-HAM", "FIN-HEL", "FIN-KIV", "FIN-SEI", "FIN-TVA", "RUS-LEV", "SWE-BOL", "SWE-GOT")
+for(chr in c(12, 3)){
+  if(chr == 3) {
+    sdr = c(17260000, 17340000)
+    ibd = get(paste0("LG", chr, ".ibd"))} # sorted and saved above
+  if(chr == 12) {
+    sdr = c(1, 16900000)
+    ibd = get(paste0("LG", chr, ".ibd"))}
+  
+  ibd.pop3 = subset(ibd, pop1 %in% lg3pop & pop2 %in% lg3pop)
+  ibd.pop3 = ibd.pop3[order(ibd.pop3$LOD),]
+  ibd.pop3$row = 1:nrow(ibd.pop3)
+  ibd.pop12 = subset(ibd, pop1 %in% lg12pop & pop2 %in% lg12pop)
+  ibd.pop12 = ibd.pop12[order(ibd.pop12$LOD),]
+  ibd.pop12$row = 1:nrow(ibd.pop12)
+  
+  assign(paste0("ibd", chr, ".pop3.plot"), ggplot(data=ibd.pop3) + 
+           geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
+           scale_color_manual(values=col.ibd, name="LG3-sexed pop", breaks=c("Male3 x Male3", "Male3 x Female", "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
+           geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "Start.bp"]) +
+           geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "End.bp"]) +
+           geom_vline(xintercept = sdr[1], color="red", linetype="dashed") +
+           geom_vline(xintercept = sdr[2], color="red", linetype="dashed") +
+           theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
+           theme(axis.text.y=element_blank(), axis.ticks.y=element_blank())
+  )
+  assign(paste0("ibd", chr, ".pop12.plot"), ggplot(data=ibd.pop12) + 
+           geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
+           scale_color_manual(values=col.ibd, name="LG12-sexed pop", breaks=c("Male3 x Male3", "Male3 x Female", "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
+           geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "Start.bp"]) +
+           geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "End.bp"]) +
+           geom_vline(xintercept = sdr[1], color="red", linetype="dashed") +
+           geom_vline(xintercept = sdr[2], color="red", linetype="dashed") +
+           theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
+           theme(axis.text.y=element_blank(), axis.ticks.y=element_blank())
+  )
+  if(chr == 3){
+    ibd3.pop3.region = ggplot(data=ibd.pop3) + 
+      geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
+      scale_color_manual(values=col.ibd, name="LG12-sexed pop", breaks=c("Male3 x Male3", "Male3 x Female", "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
+      geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "Start.bp"]) +
+      geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "End.bp"]) +
+      geom_vline(xintercept = sdr[1], color="red", linetype="dashed") +
+      geom_vline(xintercept = sdr[2], color="red", linetype="dashed") +
+      theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
+      theme(axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
+      scale_x_continuous(limits=c(17000000, 17500000), breaks=c(17000000, 17500000), labels=format(c(17000000, 17500000), scientific=T))
+    ibd3.pop12.region = ggplot(data=ibd.pop12) + 
+      geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
+      scale_color_manual(values=col.ibd, name="LG12-sexed pop", breaks=c("Male3 x Male3", "Male3 x Female", "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
+      geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "Start.bp"]) +
+      geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "End.bp"]) +
+      geom_vline(xintercept = sdr[1], color="red", linetype="dashed") +
+      geom_vline(xintercept = sdr[2], color="red", linetype="dashed") +
+      theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
+      theme(axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
+      scale_x_continuous(limits=c(17000000, 17500000), breaks=c(17000000, 17500000), labels=format(c(17000000, 17500000), scientific=T))
+  }
+}
+ggarrange(ncol = 2, nrow=2, labels = "AUTO", ibd12.pop12.plot, ibd12.pop3.plot,
+          ggarrange(nrow=1, ncol=2, widths = c(2,1), ibd3.pop12.plot+theme(legend.position = "none"), 
+                    ibd3.pop12.region+theme(legend.position = "none", axis.text.x = element_text(hjust=0.7))),
+          ggarrange(nrow=1, ncol=2, widths = c(2,1), ibd3.pop3.plot+theme(legend.position = "none"), 
+                    ibd3.pop3.region+theme(legend.position = "none", axis.text.x = element_text(hjust=0.7))))
+
+####################################################################################################
+################################################# IBD heatmap ##########################################
+order.adm5 = c("DEN-NOR", "SWE-FIS", "GER-RUE", "POL-GDY", "SWE-GOT", "FIN-HEL", "FIN-SEI", "FIN-TVA", "SWE-BOL", "FIN-HAM", "FIN-KIV", "RUS-LEV")
+color.adm5 = c(col.W, col.Sweden.west, col.Germany, col.E, col.E, col.E, col.E, col.E, col.E, col.E, col.E, col.Russia)
+load("IBDseq.RData")
+names(auto19.ibd)
+auto19.ibd$IBD_length.Mbp = auto19.ibd$IBD_length.bp / 1000000
+auto19.ibd$pair = paste0(auto19.ibd$ind1, "_", auto19.ibd$ind2, "_",
+                         auto19.ibd$sex1, "_", auto19.ibd$sex2, "_",
+                         auto19.ibd$sex_region1, "_", auto19.ibd$sex_region2, "_",
+                         auto19.ibd$pop1, "_", auto19.ibd$pop2)
 auto19.heatmap = as.data.frame(unique(auto19.ibd$pair))
 names(auto19.heatmap) = "pair"
-auto19.heatmap$sum.IBD_length.Mbp = sapply(auto19.heatmap$pair, function(x){ return(sum(auto19.ibd[auto19.ibd$pair == x, "IBD_length.Mbp"]))} )
+auto19.heatmap$sum.IBD_length.Mbp = sapply(auto19.heatmap$pair, function(x){return(sum(auto19.ibd[auto19.ibd$pair == x, "IBD_length.Mbp"]))} )
 auto19.heatmap$ind1 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[1])
 auto19.heatmap$ind2 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[2])
 auto19.heatmap$sex1 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[3])
 auto19.heatmap$sex2 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[4])
 auto19.heatmap$sex_region1 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[5])
 auto19.heatmap$sex_region2 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[6])
+auto19.heatmap$pop1 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[7])
+auto19.heatmap$pop2 = sapply(auto19.heatmap$pair, function(x) unlist(strsplit(x, split="_"))[8])
+
 auto19.heatmap2 = auto19.heatmap
 auto19.heatmap2$ind1 = auto19.heatmap$ind2
 auto19.heatmap2$sex1 = auto19.heatmap$sex2
 auto19.heatmap2$sex_region1 = auto19.heatmap$sex_region2
+auto19.heatmap2$pop1 = auto19.heatmap$pop2
 auto19.heatmap2$ind2 = auto19.heatmap$ind1
 auto19.heatmap2$sex2 = auto19.heatmap$sex1
 auto19.heatmap2$sex_region2 = auto19.heatmap$sex_region1
+auto19.heatmap2$pop2 = auto19.heatmap$pop1
+
 auto19.heatmap.full = rbind(auto19.heatmap, auto19.heatmap2)
 any(duplicated(auto19.heatmap.full))
 
-ggplot(data=auto19.heatmap.full, aes(ind1, ind2, fill= log10(sum.IBD_length.Mbp))) + 
-  theme(axis.text.x = element_text(angle=90, size=0.5)) + theme(axis.text.y = element_text(size=0.5)) + geom_tile() + 
-  scale_x_discrete(limits=order.adm) + scale_y_discrete(limits=order.adm) + scale_fill_gradient(low = "#efedf5", high = "#3f007d")
+## all IBD-tracks 
+ggplot(data=auto19.heatmap.full, aes(ind1, ind2, fill= log10(sum.IBD_length.Mbp))) + theme_bw() + geom_tile() + 
+  theme(axis.text.x = element_text(angle=90, size=0.5), axis.text.y = element_text(size=0.5), axis.ticks = element_blank()) +
+  scale_x_discrete(limits=order.adm, expand = c(0.01, 0.01)) + scale_y_discrete(limits=order.adm, expand = c(0.01, 0.01)) +
+  scale_fill_gradient(low = "#efedf5", high = "#3f007d") 
 
-## within sex
+## separate by sex
 ind237$SampleID = factor(ind237$SampleID, levels = order.adm)
 ind237 = ind237[order(ind237$SampleID),]
+                             
 female = ggplot(data=subset(auto19.heatmap.full, sex1=="F" & sex2=="F"), aes(ind1, ind2, fill= log10(sum.IBD_length.Mbp))) + 
-  theme(axis.text.x = element_text(angle=90, size=0.5)) + theme(axis.text.y = element_text(size=0.5)) + geom_tile() + 
-  scale_x_discrete(limits=ind237[ind237$sex == "F", "SampleID"]) +  scale_y_discrete(limits=ind237[ind237$sex == "F", "SampleID"]) +
+  theme_bw() + geom_tile() + theme(axis.text.x = element_text(angle=90, size=0.5), axis.text.y = element_text(size=0.5),axis.ticks = element_blank()) +
+  scale_x_discrete(limits=ind237[ind237$sex == "F", "SampleID"]) + scale_y_discrete(limits=ind237[ind237$sex == "F", "SampleID"]) +
   scale_fill_gradient(low = "#fee0d2", high = "#67000d")
+                             
 male = ggplot(data=subset(auto19.heatmap.full, sex1=="M" & sex2=="M"), aes(ind1, ind2, fill= log10(sum.IBD_length.Mbp))) + 
-  theme(axis.text.x = element_text(angle=90, size=0.5)) + theme(axis.text.y = element_text(size=0.5)) + geom_tile() + 
+  theme_bw() + geom_tile() + theme(axis.text.x = element_text(angle=90, size=0.5), axis.text.y = element_text(size=0.5), axis.ticks = element_blank()) + 
   scale_x_discrete(limits=ind237[ind237$sex == "M", "SampleID"]) + scale_y_discrete(limits=ind237[ind237$sex == "M", "SampleID"]) +
   scale_fill_gradient(low = "#d3e1ff", high = "#061539")
+
 ggarrange(ncol=2, nrow = 1, male, female)
+
+##########################################################################################
+############################################## IBD by pop and stats #############################################
+order.adm5 = c("DEN-NOR", "SWE-FIS", "GER-RUE", "POL-GDY", "SWE-GOT", "FIN-HEL", "FIN-SEI", "FIN-TVA", "SWE-BOL", "FIN-HAM", "FIN-KIV", "RUS-LEV")
+color.adm5 = c(col.W, col.Sweden.west, col.Germany, col.E, col.E, col.E, col.E, col.E, col.E, col.E, col.E, col.Russia)
+load("IBDseq.RData")
+names(auto19.ibd)
+auto19.ibd$IBD_length.Mbp = auto19.ibd$IBD_length.bp / 1000000
 
 ## length-within-pop
 p1 = ggplot()
@@ -395,113 +583,4 @@ for (i in 1:5){
 } } } }
 
 ##################################################################################################
-############################################# IBD by chromosome ################################################
-## type of males
-male3 = ind237[ind237$sex == "M" & ind237$sex_region == "LG3", "SampleID"]
-male12 = ind237[ind237$sex == "M" & ind237$sex_region == "LG12", "SampleID"]
-col.ibd = c("Male3 x Male3"="#08306b", "Male3 x Female"="#6baed6", "Male12 x Male12"="#662506", "Male12 x Female"="#fe9929", "Male3 x Male12" = "#41ab5d", "Female x Female" = "#dd3497")
 
-load("sex_region/IBDseq/LG3_IBDseq.RData")
-load("sex_region/IBDseq/LG12_IBDseq.RData")
-load("IBDseq/IBDseq.RData")
-                                    
-lod3 = ggplot(lg3.ibd) + geom_point(aes(x=log10(IBD_length), y=LOD), size=1) + 
-  labs(title=paste0("LG3 #track: ", nrow(lg3.ibd)), x="log10(IBD_length.bp)") + theme_bw()
-lod12 = ggplot(lg12.ibd) + geom_point(aes(x=log10(IBD_length), y=LOD), size=1) + 
-  labs(title=paste0("LG12 #track: ", nrow(lg12.ibd)), x="log10(IBD_length.bp)") + theme_bw()
-ggarrange(nrow=1, ncol=2, lod3, lod12)
-                                    
-for(chr in c(1:21)){
-  if(chr %in% c(3, 12)){
-    ibd = get(paste0("lg", chr, ".ibd"))
-  } else {
-    ibd = auto19.ibd[auto19.ibd$chr == paste0("LG", chr), ]
-  }
-  
-  ibd = ibd[order(ibd$LOD),]
-  ibd$row = 1:nrow(ibd)
-  ibd$type = apply(ibd, 1, function(x){
-    if(x[1] %in% male3 & x[3] %in% male3) {return("Male3 x Male3")}
-    if(x[1] %in% male12 & x[3] %in% male12) {return("Male12 x Male12")}
-    if(x[1] %in% male3 & x[3] %in% male12) {return("Male3 x Male12")}
-    if(x[1] %in% male12 & x[3] %in% male3) {return("Male3 x Male12")}
-    if(x[13] == "F" & x[14] == "F") {return("Female x Female")}
-    if(x[1] %in% male12 & x[14] == "F") {return("Male12 x Female")}
-    if(x[13] == "F" & x[3] %in% male12) {return("Male12 x Female")}
-    if(x[1] %in% male3 & x[14] == "F") {return("Male3 x Female")}
-    if(x[13] == "F" & x[3] %in% male3) {return("Male3 x Female")}
-  })
-  assign(paste0("ibd", chr, ".plot"), ggplot(data=ibd) + 
-           geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
-           scale_color_manual(values=col.ibd, breaks=c("Male3 x Male3", "Male3 x Female", "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
-           theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
-           theme(axis.text.y=element_blank(), axis.ticks.y=element_blank()))
-
-  if(chr == 3) {
-    sdr = c(17260000, 17340000)
-    assign(paste0("LG", chr, ".ibd"), ibd)}
-  if(chr == 12) {
-    sdr = c(1, 16900000)
-    assign(paste0("LG", chr, ".ibd"), ibd)}
-  if(chr %in% c(3, 12)) {
-    assign(paste0("ibd", chr, ".plot"), ggplot(data=ibd) + 
-             geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
-             scale_color_manual(values=col.ibd, breaks=c("Male3 x Male3", "Male3 x Female",  "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
-             geom_vline(xintercept = sdr[1], linewidth=0.2) + geom_vline(xintercept = sdr[2], linewidth=0.2) +
-             theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
-             theme(axis.text.y=element_blank(), axis.ticks.y=element_blank())) 
-  }
-}
-ggarrange(ncol=3, nrow=7, ibd1.plot, ibd2.plot, ibd3.plot, ibd4.plot, ibd5.plot, ibd6.plot, ibd7.plot, ibd8.plot, ibd9.plot, ibd10.plot, ibd11.plot, ibd12.plot, ibd13.plot, ibd14.plot, ibd15.plot, ibd16.plot, ibd17.plot, ibd18.plot, ibd19.plot, ibd20.plot, ibd21.plot)
-
-### only sex chromosomes, only the sexed populations (without POL-GDY)
-lg3pop =c("DEN-NOR", "GER-RUE", "SWE-FIS")
-lg12pop = c("FIN-HAM", "FIN-HEL", "FIN-KIV", "FIN-SEI", "FIN-TVA", "RUS-LEV", "SWE-BOL", "SWE-GOT")
-for(chr in c(12, 3)){
-  if(chr == 3) {
-    sdr = c(17260000, 17340000)
-    ibd = get(paste0("LG", chr, ".ibd"))}
-  if(chr == 12) {
-    sdr = c(1, 16900000)
-    ibd = get(paste0("LG", chr, ".ibd"))}
-  
-  ibd.pop3 = subset(ibd, pop1 %in% lg3pop & pop2 %in% lg3pop)
-  ibd.pop12 = subset(ibd, pop1 %in% lg12pop & pop2 %in% lg12pop)
-  
-  assign(paste0("ibd", chr, ".pop3.plot"), ggplot(data=ibd.pop3) + 
-           geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
-           scale_color_manual(values=col.ibd, name="LG3-sexed pop", breaks=c("Male3 x Male3", "Male3 x Female",  "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
-           geom_vline(xintercept = sdr[1], linewidth=0.2) + geom_vline(xintercept = sdr[2], linewidth=0.2) +
-           theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
-           theme(axis.text.y=element_blank(), axis.ticks.y=element_blank()))
-  assign(paste0("ibd", chr, ".pop12.plot"), ggplot(data=ibd.pop12) + 
-           geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
-           scale_color_manual(values=col.ibd, name="LG12-sexed pop", breaks=c("Male3 x Male3", "Male3 x Female", "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
-           geom_vline(xintercept = sdr[1], linewidth=0.2) + geom_vline(xintercept = sdr[2], linewidth=0.2) +
-           theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
-           theme(axis.text.y=element_blank(), axis.ticks.y=element_blank()))
-  if(chr == 3){
-    ibd3.pop3.region = ggplot(data=ibd.pop3) + 
-      geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
-      scale_color_manual(values=col.ibd, name="LG12-sexed pop", breaks=c("Male3 x Male3", "Male3 x Female", "Male12 x Male12", "Male12 x Female",  "Male3 x Male12", "Female x Female")) +
-      geom_vline(xintercept = sdr[1], linewidth=0.2) + geom_vline(xintercept = sdr[2], linewidth=0.2) +
-      theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
-      theme(axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
-      scale_x_continuous(limits=c(17000000, 17500000), breaks=c(17000000, 17500000))
-    
-    ibd3.pop12.region = ggplot(data=ibd.pop12) + 
-      geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
-      scale_color_manual(values=col.ibd, name="LG12-sexed pop", breaks=c("Male3 x Male3", "Male3 x Female",  "Male12 x Male12", "Male12 x Female",  "Male3 x Male12", "Female x Female")) +
-      geom_vline(xintercept = sdr[1], linewidth=0.2) + geom_vline(xintercept = sdr[2], linewidth=0.2) +
-      theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
-      theme(axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
-      scale_x_continuous(limits=c(17000000, 17500000), breaks=c(17000000, 17500000))
-  }
-}
-ggarrange(ncol = 2, nrow=2, labels = "AUTO", heights = c(1.1,1),
-          ibd12.pop12.plot, ibd12.pop3.plot,
-          ggarrange(nrow=1, ncol=2, widths = c(2.5,1), ibd3.pop12.plot+theme(legend.position = "none"), ibd3.pop12.region+theme(legend.position = "none")),
-          ggarrange(nrow=1, ncol=2, widths = c(2.5,1), ibd3.pop3.plot+theme(legend.position = "none"), ibd3.pop3.region+theme(legend.position = "none")))
-
-##################################################################################################
-##################################################################################################
