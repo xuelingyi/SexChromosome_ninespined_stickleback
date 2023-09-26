@@ -607,54 +607,38 @@ for (data in datasets){
 pop.lg3 = c("DEN-NOR", "GER-RUE", "SWE-FIS", "POL-GDY")
 pop.lg12 = c("FIN-HEL", "FIN-HAM", "FIN-KIV", "FIN-SEI", "FIN-TVA", "SWE-BOL", "SWE-GOT", "RUS-LEV", "POL-GDY")
 
+pop.order = c("DEN-NOR", "SWE-FIS", "GER-RUE", "POL-GDY", "SWE-GOT", "FIN-HEL", "FIN-SEI", "FIN-TVA", "SWE-BOL", "FIN-HAM", "FIN-KIV", "RUS-LEV")
+
 for (i in 1:3){
-  print(paste0("process dataset: ", type[i]))
-  
   prefix = paste0("./filter/", datasets[i])
   f2_blocks = f2_from_geno(pref=prefix)
-
   f3_we = f3(f2_blocks, pop1=pop12, pop2=pop.lg12, pop3=pop.lg3)
-  print("not admixed populations: ")
-  print(pop12[!(pop12 %in% unique(f3_we[f3_we$est < 0 & f3_we$p <= 0.05,]$pop1))])
   write.csv(f3_we, paste0(type[i], "_f3we_raw.csv"), row.names = F)
   
   summary = NULL
   for (p in pop12){
-    data = f3_we[f3_we$pop1 == p, ]
-    adm = data[data$est < 0 & data$p <= 0.05, ]
-    lg12 = paste(pop.lg12[pop.lg12 %in% adm$pop2], collapse = ", ")
-    lg3 = paste(pop.lg3[pop.lg3 %in% adm$pop3], collapse = ", ")
-    summary = rbind(summary, c(p, mean(data$est), mean(adm$est), lg3, lg12))
+    data = f3_we[f3_we$pop1 == p & !(is.na(f3_we$p)), ]
+    data = data[data$p <= 0.05, ]
+    summary = rbind(summary, c(p, mean(data$est)))
   }
   summary = as.data.frame(summary)
-  names(summary) = c("pop1", "f3_we", "f3_we_adm", "lg3.source", "lg12,source")
-  write.csv(summary, paste0(type[i], "_f3.csv"), row.names = F)
+  names(summary) = c("pop1", "f3_wesig")
+  write.csv(summary, paste0(type[i], "_f3sig.csv"), row.names = F)
   assign(paste0(type[i], "_f3"), summary)
 }
 
-f3_summary = merge(male_f3[, c("pop1", "f3_we", "f3_we_adm")], 
-                   female_f3[, c("pop1", "f3_we", "f3_we_adm")], 
-                   by="pop1", suffixes = c(".male", ".female"))
-f3_summary = merge(f3_summary, all_f3[, c("pop1", "f3_we", "f3_we_adm")], by="pop1")
+f3_summary = merge(male_f3, female_f3, by="pop1", suffixes = c(".male", ".female"))
+f3_summary = merge(f3_summary, all_f3, by="pop1")
 
-pop.order = c("DEN-NOR", "SWE-FIS", "GER-RUE", "POL-GDY", "SWE-GOT", "FIN-HEL", "FIN-SEI", "FIN-TVA", "SWE-BOL", "FIN-HAM", "FIN-KIV", "RUS-LEV")
-all.plot = ggplot(f3_summary) + 
+plot = ggplot(f3_summary) + 
   geom_vline(xintercept = 0, color="#ad2020") +
-  geom_point(aes(x=as.numeric(f3_we), y=pop1), shape=4, color="black", size=3, stroke=1, alpha=0.7) + 
-  geom_point(aes(x=as.numeric(f3_we.male), y=pop1), shape=17, color="royalblue", size=3, alpha=0.7) + 
-  geom_point(aes(x=as.numeric(f3_we.female), y=pop1), shape=16, color="indianred3", size=3, alpha=0.7) +
+  geom_point(aes(x=as.numeric(f3_wesig), y=pop1), shape=4, color="black", size=3, stroke=1, alpha=0.7) + 
+  geom_point(aes(x=as.numeric(f3_wesig.male), y=pop1), shape=17, color="royalblue", size=3, alpha=0.7) + 
+  geom_point(aes(x=as.numeric(f3_wesig.female), y=pop1), shape=16, color="indianred3", size=3, alpha=0.7) +
   theme_bw() +  ylim(breaks=pop.order) +
-  labs(x="mean f3 (all tests between LG3 and LG12 pops)", y="Population")
+  labs(x="mean f3 (significant estimates)", y="admixed population")
 
-adm.plot = ggplot(f3_summary) + 
-  geom_vline(xintercept = 0, color="#ad2020") +
-  geom_point(aes(x=as.numeric(f3_we_adm), y=pop1), shape=4, color="black", size=3, stroke=1, alpha=0.7) + 
-  geom_point(aes(x=as.numeric(f3_we_adm.male), y=pop1), shape=17, color="royalblue", size=3, alpha=0.7) + 
-  geom_point(aes(x=as.numeric(f3_we_adm.female), y=pop1), shape=16, color="indianred3", size=3, alpha=0.7) +
-  theme_bw() +  ylim(breaks=pop.order) +
-  labs(x="mean f3 (negative estimates with p<= 0.05)", y="admixed population")
-
-png("f3.png", width = 10, height = 5, units = "in", res=600)
-pdf("f3.pdf", width = 10, height = 5)
-ggarrange(nrow=1, ncol=2, adm.plot, all.plot)
+png("f3sig.png", width = 5, height = 5, units = "in", res=600)
+pdf("f3sig.pdf", width = 5, height = 5)
+plot
 dev.off()
