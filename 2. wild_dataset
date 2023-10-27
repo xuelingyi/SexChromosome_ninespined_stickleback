@@ -1,6 +1,5 @@
 ################################# generate the wild dataset ######################################
 ### 887 individuals of Puntigius pungitius from 45 global populations were sequenced and published in Feng et al. (2022, https://doi.org/10.1111/mec.16651). 
-
 ### the raw sequencing data were re-mapped to version 7 reference of Pungitius pungitius (Kivikoski et al. 2021; https://www.ebi.ac.uk/ena/browser/view/GCA_902500615?show=assembly-versions) and processed in GATK in the same way for the family dataset. 
 
 ######################## get biallelic SNPs from the GATK processed data ######################## 
