@@ -20,17 +20,15 @@ order.adm=read.table("order.adm.txt")
 order.adm = order.adm$V1
 ##################################################################################################
 ############################################# pie charts on map ##########################################
-source("../my.map.R")
-
 ## pie charts of SDR in males
 pop12$male_LG3 = sapply(pop12$Population, function(x){ return(nrow(subset(ind237, Population == x & sex == "M" & sex_region == "LG3"))) })
 pop12$male_LG12 = sapply(pop12$Population, function(x){ return(nrow(subset(ind237, Population == x & sex == "M" & sex_region == "LG12"))) })
-my.map(pop12) + geom_scatterpie(data=pop12, aes(x=long_ling, y=lat_ling), cols = c("male_LG12", "male_LG3"), color=NA, alpha=0.8) + scale_fill_manual(values=c("male_LG3"=col.W, "male_LG12"=col.E))
+ggplot() + geom_scatterpie(data=pop12, aes(x=long_ling, y=lat_ling), cols = c("male_LG12", "male_LG3"), color=NA, alpha=0.8) + scale_fill_manual(values=c("male_LG3"=col.W, "male_LG12"=col.E))
 
 ## pie charts of sexes
 pop12$male = sapply(pop12$Population, function(x){ return(nrow(subset(ind237, Population == x & sex == "M"))) })
 pop12$female = sapply(pop12$Population, function(x){ return(nrow(subset(ind237, Population == x & sex == "F"))) })
-my.map(pop12) + geom_scatterpie(data=pop12, aes(x=long_ling, y=lat_ling), cols = c("female", "male"), color=NA, alpha=0.8) + scale_fill_manual(values=c("male"="royalblue", "female"="indianred"))
+ggplot() + geom_scatterpie(data=pop12, aes(x=long_ling, y=lat_ling), cols = c("female", "male"), color=NA, alpha=0.8) + scale_fill_manual(values=c("male"="royalblue", "female"="indianred"))
 ##################################################################################################
 ############################################ plot ADMIXTURE results ################################################
 datasets = c("marine237_autosome", "marine_male119_autosome", "marine_female118_autosome")
