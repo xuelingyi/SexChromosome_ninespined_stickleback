@@ -90,29 +90,6 @@ plink2 --bfile ${data} --keep ind237_f.list --allow-extra-chr --set-all-var-ids 
 plink2 --bfile ${data} --keep ind237_m.list --allow-extra-chr --set-all-var-ids @:#[b37]\$r,\$a --make-bed --out ${data}_m
 ## run PCA and ADMIXTURE using the subset data ${data}_f and ${data}_m. Same codes above.
 
-############################## SDR data ##############################
-module load samtools
-module load vcftools
-module load plink
-
-ind=marine237
-
-### subset the sex region
-bcftools view LG3.${ind}.a2m7.vcf.gz --regions LG3:17260000-17340000 -Oz -o LG3.${ind}.a2m7.LG3sex.vcf.gz
-bcftools view LG12.${ind}.a2m7.vcf.gz --regions LG12:1-16900000 -Oz -o LG12.${ind}.a2m7.LG12sex.vcf.gz
-# run PCA using the same codes above
-
-## female only
-plink2 --bfile LG3.marine237.a2m7.LG3sex --keep ID.f --geno 0.1 --make-bed --allow-extra-chr --out female_LG3.marine237.a2m7.LG3sex.g1
-plink2 --bfile LG12.marine237.a2m7.LG12sex --keep ID.f --geno 0.1 --make-bed --allow-extra-chr --out female_LG12.marine237.a2m7.LG12sex.g1
-
-## transfer to vcf and estimate missing data
-plink2 --bfile female_LG3.marine237.a2m7.LG3sex.g1 --allow-extra-chr --export vcf-4.2 id-paste=iid --out female_LG3.marine237.a2m7.LG3sex.g1
-vcftools --vcf female_LG3.marine237.a2m7.LG3sex.g1.vcf --missing-indv --out female_LG3.marine237.a2m7.LG3sex.g1
-plink2 --bfile female_LG12.marine237.a2m7.LG12sex.g1 --allow-extra-chr --export vcf-4.2 id-paste=iid --out female_LG12.marine237.a2m7.LG12sex.g1
-vcftools --vcf female_LG12.marine237.a2m7.LG12sex.g1.vcf --missing-indv --out female_LG12.marine237.a2m7.LG12sex.g1
-# run PCA and admixture using the same codes above
-
 ########################################## HIest datasets ##########################################
 ############ DEN_RUS
 ## snps of no missing data in parental populations 
