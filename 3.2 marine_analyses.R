@@ -32,28 +32,12 @@ pop12$male = sapply(pop12$Population, function(x){ return(nrow(subset(ind237, Po
 pop12$female = sapply(pop12$Population, function(x){ return(nrow(subset(ind237, Population == x & sex == "F"))) })
 my.map(pop12) + geom_scatterpie(data=pop12, aes(x=long_ling, y=lat_ling), cols = c("female", "male"), color=NA, alpha=0.8) + scale_fill_manual(values=c("male"="royalblue", "female"="indianred"))
 ##################################################################################################
-############################################ plot kinship ###############################################
-king = read.table("marine237_a2m7_no3.12_LD2_a5g1.kin0", header = F)
-names(king) = c("FID1",	"IID1",	"FID2",	"IID2",	"NSNP",	"HETHET", "IBS0", "KINSHIP")
-for (pop in unique(ind237$Population)) {
-  assign(paste0(gsub("-", "_", pop), "_king"), ggplot() + 
-           geom_histogram(data=king[king$IID1 %in% ind237[ind237$Population == pop, "SampleID"] & king$IID2 %in% ind237[ind237$Population == pop, "SampleID"], ],
-                          aes(x=KINSHIP), fill="grey20") +
-           labs(title=paste0(pop, ", N=", nrow(ind237[ind237$Population == pop, ]))) +
-           theme_bw() + theme(plot.title=element_text(size=8), axis.title = element_text(size=6), axis.text = element_text(size=6)) 
-           )
-}
-ggarrange(nrow=3, ncol=4, 
-          RUS_LEV_king, FIN_KIV_king, FIN_HEL_king, FIN_HAM_king, 
-          FIN_SEI_king, FIN_TVA_king, SWE_GOT_king, SWE_FIS_king, 
-          SWE_BOL_king, POL_GDY_king, GER_RUE_king, DEN_NOR_king)
-##################################################################################################
 ############################################ plot ADMIXTURE results ################################################
-datasets = c("marine237_autosome", "marine_male119_autosome", "marine_female118_autosome", "marine_female118_LG12SDR", "marine_female118_LG3SDR")
+datasets = c("marine237_autosome", "marine_male119_autosome", "marine_female118_autosome")
 
 ### CV errors
-files = c("cv_k1.13.txt", "adm_m_cv.txt", "adm_f_cv.txt", "LG12sexfemale_CV.txt", "LG3sexfemale_CV.txt")
-for (i in 1:5){
+files = c("cv_k1.13.txt", "adm_m_cv.txt", "adm_f_cv.txt")
+for (i in 1:3){
   error = read.table(files[i])
   if(i == 1){ error = error[, 5:6] } else 
     { error = error[, 3:4] }
@@ -63,14 +47,14 @@ for (i in 1:5){
   assign(paste0(datasets[i], "_CV.plot"), ggplot(data=error, aes(x=K, y=CV_error)) + geom_point(size=0.8) + stat_summary(fun=mean, geom="line", aes(group=1)) + scale_x_discrete(limits=factor(1:max(as.numeric(error$K)))) + labs(title=datasets[i], y="Cross-Validation error"))
 }
 ggarrange(nrow=2, ncol=3, labels = "AUTO",
-          marine237_autosome_CV.plot, marine_male119_autosome_CV.plot, marine_female118_autosome_CV.plot, marine_female118_LG12SDR_CV.plot, marine_female118_LG3SDR_CV.plot)
+          marine237_autosome_CV.plot, marine_male119_autosome_CV.plot, marine_female118_autosome_CV.plot)
 
 ## admixture plots
 library(reshape2)
-paths = c("1675051151/K=", "1677129050/K=", "1677128605/K=", "1683597383/K=", "1683597624/K=") # CLUMPAK
-IDlists = c("ID", "ID.m", "ID.f", "ID.f", "ID.f")
+paths = c("1675051151/K=", "1677129050/K=", "1677128605/K=") # CLUMPAK
+IDlists = c("ID", "ID.m", "ID.f")
 
-for (i in 1:5){
+for (i in 1:3){
   ID = read.table(IDlists[i])
   max = ifelse(i==1, 7, 6)
   pdf(paste0(datasets[i], "_clum_plot.pdf"))
@@ -112,27 +96,13 @@ b = ggarrange(nrow=5, ncol=1, heights = c(1,1,1,1,1.5),
               marine_female118_autosome_K5_clu + top.themes + scale_fill_manual(values=c(col.Sweden.west, col.W, col.Germany, col.Russia, col.E)),
               marine_female118_autosome_K6_clu + theme(legend.position = "none") + scale_fill_manual(values=c(col.East2, col.Russia, col.E, col.Sweden.west, col.W, col.Germany)))
 
-c = ggarrange(nrow=5, ncol=1, heights = c(1,1,1,1,1.5), 
-              marine_female118_LG12SDR_K2_clu + top.themes + scale_fill_manual(values=c(col.W, col.E)),
-              marine_female118_LG12SDR_K3_clu + top.themes + scale_fill_manual(values=c(col.W, col.E, col.Sweden.west)),
-              marine_female118_LG12SDR_K4_clu + top.themes + scale_fill_manual(values=c(col.Russia, col.W, col.E, col.Sweden.west)),
-              marine_female118_LG12SDR_K5_clu + top.themes + scale_fill_manual(values=c(col.E, col.Sweden.west, col.Russia, col.Germany, col.W)),
-              marine_female118_LG12SDR_K6_clu + theme(legend.position = "none") + scale_fill_manual(values=c(col.Russia, col.E, col.W, col.East2, col.Sweden.west, col.Germany)))
-
-d = ggarrange(nrow=5, ncol=1, heights = c(1,1,1,1,1.5), 
-              marine_female118_LG3SDR_K2_clu + top.themes + scale_fill_manual(values=c(col.E, col.W)),
-              marine_female118_LG3SDR_K3_clu + top.themes + scale_fill_manual(values=c(col.W, col.E, col.Sweden.west)),
-              marine_female118_LG3SDR_K4_clu + top.themes + scale_fill_manual(values=c(col.Russia, col.W, col.E, col.Sweden.west)),
-              marine_female118_LG3SDR_K5_clu + top.themes + scale_fill_manual(values=c(col.Sweden.west, col.Russia, col.W, col.Germany, col.E)),
-              marine_female118_LG3SDR_K6_clu + theme(legend.position = "none") + scale_fill_manual(values=c(col.W, col.E, col.East2, col.Russia, col.Sweden.west, col.Germany)))
-
-ggarrange(ncol = 2, nrow=2, labels = datasets[2:5], a, b, c, d)
+ggarrange(ncol = 2, nrow=1, labels = datasets[2:3], a, b)
 ##################################################################################################
 ########################################### PCA #############################################
-datasets = c("marine237_a2m7_no3.12_LD2_a5g1", "marine237_a2m7_no3.12_LD2_a5g1_m", "marine237_a2m7_no3.12_LD2_a5g1_f",  "female_LG12.marine237.a2m7.LG12sex.g1", "female_LG3.marine237.a2m7.LG3sex.g1")
-titles = c("marine237_a2m7_no3.12_LD2_a5g1", "marine_119males_autosome", "marine_118females_autosome", "female_LG12SDR", "female_LG3SDR")
+datasets = c("marine237_a2m7_no3.12_LD2_a5g1", "marine237_a2m7_no3.12_LD2_a5g1_m", "marine237_a2m7_no3.12_LD2_a5g1_f")
+titles = c("marine237_a2m7_no3.12_LD2_a5g1", "marine_119males_autosome", "marine_118females_autosome")
 
-for (i in 1:5){
+for (i in 1:3){
   title=titles[i]
   pca = read.table(paste0(datasets[i], ".eigenvec"))
   eig=read.table(paste0(datasets[i], ".eigenval"))
@@ -171,9 +141,6 @@ for (i in 1:5){
   }
 ggarrange(marine237_a2m7_no3.12_LD2_a5g1_pca_miss.plot, marine237_a2m7_no3.12_LD2_a5g1_pca_pop.plot,
           marine237_a2m7_no3.12_LD2_a5g1_m_pca_pop.plot, marine237_a2m7_no3.12_LD2_a5g1_f_pca_pop.plot,
-          labels = "AUTO")
-ggarrange(female_LG12.marine237.a2m7.LG12sex.g1_pca_miss.plot, female_LG3.marine237.a2m7.LG3sex.g1_pca_miss.plot,
-          female_LG12.marine237.a2m7.LG12sex.g1_pca_pop.plot, female_LG3.marine237.a2m7.LG3sex.g1_pca_pop.plot,
           labels = "AUTO")
 ##################################################################################################
 ########################################### HIest ###########################################
@@ -361,73 +328,6 @@ ggarrange(ncol=3, nrow=7,
           ibd16.plot, ibd17.plot, ibd18.plot,
           ibd19.plot, ibd20.plot, ibd21.plot)
 
-### only sex chromosomes, in each sexed populations (without POL-GDY)
-lg3pop =c("DEN-NOR", "GER-RUE", "SWE-FIS")
-lg12pop = c("FIN-HAM", "FIN-HEL", "FIN-KIV", "FIN-SEI", "FIN-TVA", "RUS-LEV", "SWE-BOL", "SWE-GOT")
-for(chr in c(12, 3)){
-  if(chr == 3) {
-    sdr = c(17260000, 17340000)
-    ibd = get(paste0("LG", chr, ".ibd"))} # sorted and saved above
-  if(chr == 12) {
-    sdr = c(1, 16900000)
-    ibd = get(paste0("LG", chr, ".ibd"))}
-  
-  ibd.pop3 = subset(ibd, pop1 %in% lg3pop & pop2 %in% lg3pop)
-  ibd.pop3 = ibd.pop3[order(ibd.pop3$LOD),]
-  ibd.pop3$row = 1:nrow(ibd.pop3)
-  ibd.pop12 = subset(ibd, pop1 %in% lg12pop & pop2 %in% lg12pop)
-  ibd.pop12 = ibd.pop12[order(ibd.pop12$LOD),]
-  ibd.pop12$row = 1:nrow(ibd.pop12)
-  
-  assign(paste0("ibd", chr, ".pop3.plot"), ggplot(data=ibd.pop3) + 
-           geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
-           scale_color_manual(values=col.ibd, name="LG3-sexed pop", breaks=c("Male3 x Male3", "Male3 x Female", "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
-           geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "Start.bp"]) +
-           geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "End.bp"]) +
-           geom_vline(xintercept = sdr[1], color="red", linetype="dashed") +
-           geom_vline(xintercept = sdr[2], color="red", linetype="dashed") +
-           theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
-           theme(axis.text.y=element_blank(), axis.ticks.y=element_blank())
-  )
-  assign(paste0("ibd", chr, ".pop12.plot"), ggplot(data=ibd.pop12) + 
-           geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
-           scale_color_manual(values=col.ibd, name="LG12-sexed pop", breaks=c("Male3 x Male3", "Male3 x Female", "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
-           geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "Start.bp"]) +
-           geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "End.bp"]) +
-           geom_vline(xintercept = sdr[1], color="red", linetype="dashed") +
-           geom_vline(xintercept = sdr[2], color="red", linetype="dashed") +
-           theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
-           theme(axis.text.y=element_blank(), axis.ticks.y=element_blank())
-  )
-  if(chr == 3){
-    ibd3.pop3.region = ggplot(data=ibd.pop3) + 
-      geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
-      scale_color_manual(values=col.ibd, name="LG12-sexed pop", breaks=c("Male3 x Male3", "Male3 x Female", "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
-      geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "Start.bp"]) +
-      geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "End.bp"]) +
-      geom_vline(xintercept = sdr[1], color="red", linetype="dashed") +
-      geom_vline(xintercept = sdr[2], color="red", linetype="dashed") +
-      theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
-      theme(axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
-      scale_x_continuous(limits=c(17000000, 17500000), breaks=c(17000000, 17500000), labels=format(c(17000000, 17500000), scientific=T))
-    ibd3.pop12.region = ggplot(data=ibd.pop12) + 
-      geom_segment(aes(x = start, y = row, xend = end, yend = row, color=type)) +
-      scale_color_manual(values=col.ibd, name="LG12-sexed pop", breaks=c("Male3 x Male3", "Male3 x Female", "Male12 x Male12", "Male12 x Female", "Male3 x Male12", "Female x Female")) +
-      geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "Start.bp"]) +
-      geom_vline(xintercept = centromere[centromere$Linkage_Group == chr, "End.bp"]) +
-      geom_vline(xintercept = sdr[1], color="red", linetype="dashed") +
-      geom_vline(xintercept = sdr[2], color="red", linetype="dashed") +
-      theme_classic() + labs(x=paste0("LG", chr, " position (bp)"), y="IBD-like track") +
-      theme(axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
-      scale_x_continuous(limits=c(17000000, 17500000), breaks=c(17000000, 17500000), labels=format(c(17000000, 17500000), scientific=T))
-  }
-}
-ggarrange(ncol = 2, nrow=2, labels = "AUTO", ibd12.pop12.plot, ibd12.pop3.plot,
-          ggarrange(nrow=1, ncol=2, widths = c(2,1), ibd3.pop12.plot+theme(legend.position = "none"), 
-                    ibd3.pop12.region+theme(legend.position = "none", axis.text.x = element_text(hjust=0.7))),
-          ggarrange(nrow=1, ncol=2, widths = c(2,1), ibd3.pop3.plot+theme(legend.position = "none"), 
-                    ibd3.pop3.region+theme(legend.position = "none", axis.text.x = element_text(hjust=0.7))))
-
 ####################################################################################################
 ################################################# IBD heatmap ##########################################
 order.adm5 = c("DEN-NOR", "SWE-FIS", "GER-RUE", "POL-GDY", "SWE-GOT", "FIN-HEL", "FIN-SEI", "FIN-TVA", "SWE-BOL", "FIN-HAM", "FIN-KIV", "RUS-LEV")
@@ -487,65 +387,7 @@ male = ggplot(data=subset(auto19.heatmap.full, sex1=="M" & sex2=="M"), aes(ind1,
 ggarrange(ncol=2, nrow = 1, male, female)
 
 ##########################################################################################
-############################################## IBD by pop and stats #############################################
-order.adm5 = c("DEN-NOR", "SWE-FIS", "GER-RUE", "POL-GDY", "SWE-GOT", "FIN-HEL", "FIN-SEI", "FIN-TVA", "SWE-BOL", "FIN-HAM", "FIN-KIV", "RUS-LEV")
-color.adm5 = c(col.W, col.Sweden.west, col.Germany, col.E, col.E, col.E, col.E, col.E, col.E, col.E, col.E, col.Russia)
-load("IBDseq.RData")
-names(auto19.ibd)
-auto19.ibd$IBD_length.Mbp = auto19.ibd$IBD_length.bp / 1000000
-
-## length-within-pop
-p1 = ggplot()
-for (i in 1:12){
-  pop = order.adm5[i]
-  data = subset(auto19.ibd, pop1 == pop & pop2 == pop)
-  p1 = p1 + geom_jitter(data=data, aes(x=pop1, y=IBD_length.Mbp), color=color.adm5[i], size=0.8) + geom_violin(data=data, aes(x=pop1, y=IBD_length.Mbp), color="black", fill=NA) 
-}
-p1 + labs(x="Sampling population") + scale_x_discrete(limits = order.adm5) + theme_bw() + theme(axis.text.x = element_text(angle=90))
-
-## POLGDY
-ibd.POL = auto19.ibd[auto19.ibd$pop1 == "POL-GDY" | auto19.ibd$pop2 == "POL-GDY", ]
-ibd.POL$type = "between"
-for (i in 1:nrow(ibd.POL)){
-  if (ibd.POL[i, "sex1"] == ibd.POL[i, "sex2"]){
-    if(ibd.POL[i, "sex1"] == "F"){ibd.POL[i, "type"] = "F"}
-    if(ibd.POL[i, "sex1"] == "M"){ibd.POL[i, "type"] = "M"}
-} }
-
-POL.plot = ggplot() + ylim(0,5)
-for (pop in order.adm5){
-  data = rbind(ibd.POL[ibd.POL$pop1 == pop, ], ibd.POL[ibd.POL$pop2 == pop, ])
-  if (pop == "POL-GDY"){data =ibd.POL[ibd.POL$pop1 == ibd.POL$pop2,] }
-  data$compare = paste0(data$ind1, ".", data$ind2)
-  for (sex in c("F", "M")){
-    sub.data = subset(data, type == sex)
-    track = as.data.frame(unique(paste0(sub.data$ind1, ".", sub.data$ind2)))
-    track$Ntrack = sapply(track[,1], function(x){ return(nrow(data[data$compare == x, ])) })
-    track$Ltrack = sapply(track[,1], function(x){ return(sum(data[data$compare == x, "IBD_length.Mbp"])) })
-    assign(paste0("track.", sex), track)
-    assign(paste0("norm.ntrack.", sex), round(mean(track$Ntrack), 2))
-    assign(paste0("norm.ltrack.", sex), round(mean(track$Ltrack), 2))
-  }
-  testN = t.test(track.F$Ntrack, track.M$Ntrack)
-  if(testN$p.value <= 0.05) {
-    print(paste0("significant Ntrack between sexes in POL-GDY x ", pop))
-    print(testN)
-  }
-  testL = t.test(track.F$Ltrack, track.M$Ltrack)
-  if(testL$p.value <= 0.05) {
-    print(paste0("significant Ltrack between sexes in POL-GDY x ", pop))
-    print(testL)}
-  POL.plot = POL.plot + geom_jitter(data=data, aes(x=ifelse(pop1 == "POL-GDY", pop2, pop1), y=IBD_length.Mbp, color=type), size=1, alpha=0.6) +
-    geom_violin(data=data, aes(x=ifelse(pop1 == "POL-GDY", pop2, pop1), y=IBD_length.Mbp), fill=alpha("white", 0)) +
-    geom_text(data=data, aes(x=ifelse(pop1 == "POL-GDY", pop2, pop1)),  y=4.8, label=norm.ntrack.F, color="indianred2") +
-    geom_text(data=data, aes(x=ifelse(pop1 == "POL-GDY", pop2, pop1)),  y=4.5, label=norm.ntrack.M, color="royalblue")
-}
-POL.plot + labs(x="POL-GDY x Sampling population") +
-  theme_bw() + theme(plot.title = element_text(size=10), axis.title = element_text(size=10), axis.text = element_text(size=8), axis.text.x = element_text(angle=90)) +
-  scale_x_discrete(limits=order.adm5) +
-  scale_color_manual(values=c("between"="grey50", "F"="indianred2", "M"="royalblue"), labels=c("male x female", "female x female", "male x male"), name="IBD-like track") +
-  geom_text(aes(x="FIN-HEL"), y=5.1, label="#tracks per comparison per sex")
-
+############################################## IBD by genetic cluster #############################################
 ### adm5
 range(auto19.ibd$geography.km)
 range(auto19.ibd$IBD_length.Mbp)
@@ -558,87 +400,5 @@ for (i in 1:5){
     if(i==j){data = subset(auto19.ibd, ind1 %in% ID1 & ind2 %in% ID1)}
     assign(paste0("plot", i, j), ggplot(data) + geom_point(aes(x=geography.km, y=IBD_length.Mbp)) + 
              scale_x_continuous(limits = c(0, 1850))+ scale_y_continuous(limits = c(0, 31)) + theme_bw())
-    if(i != j) {
-    for (sex in c("F", "M")){
-      sub.data = subset(data, sex1 == sex & sex2 == sex)
-      assign(paste0("plot", i, j, sex), ggplot(sub.data) + geom_point(aes(x=geography.km, y=IBD_length.Mbp, color=sex1)) + 
-               scale_x_continuous(limits = c(0, 1850))+ scale_y_continuous(limits = c(0, 31)) + theme_bw() +
-               scale_color_manual(values=c("F"="indianred", "M"="royalblue"), guide="none"))
-      if(nrow(sub.data) > 0){
-        sub.data$compare = paste0(sub.data$ind1, ".", sub.data$ind2)
-        track = as.data.frame(unique(paste0(sub.data$ind1, ".", sub.data$ind2)))
-        track$Ntrack = sapply(track[,1], function(x){ return(nrow(sub.data[sub.data$compare == x, ])) })
-        track$Ltrack = sapply(track[,1], function(x){ return(sum(sub.data[sub.data$compare == x, "IBD_length.Mbp"])) })
-        assign(paste0("track.", i, j, sex), track) }
-    }
-    if(!(i == 2 & j == 5)){ ## the comparison having zero tracks in one sex
-      testN = t.test(get(paste0("track.", i, j, "F"))$Ntrack, get(paste0("track.", i, j, "M"))$Ntrack)
-      if(testN$p.value <= 0.05) {
-        print(paste0("significant Ntrack between sexes in ", adm5[i], " x ", adm5[j]))
-        print(testN) }
-      testL = t.test(get(paste0("track.", i, j, "F"))$Ltrack, get(paste0("track.", i, j, "M"))$Ltrack)
-      if(testL$p.value <= 0.05) {
-        print(paste0("significant Ltrack between sexes in ", adm5[i], " x ", adm5[j]))
-        print(testL) }
-} } } }
-
+} }
 ##################################################################################################
-###################################### f3 estimates ########################################################
-library(ggplot2)
-library(ggpubr)
-library(scatterpie)
-library(ggrepel)
-library(admixtools)
-library(tidyverse)
-
-ind237 = read.csv("../marine237.csv")
-pop12 = unique(ind237$Population)
-
-datasets = c("marine237_a2m7_no3.12_LD2_a5g1",  "marine237_a2m7_no3.12_LD2_a5g1_f",  "marine237_a2m7_no3.12_LD2_a5g1_m")
-type = c("all", "female", "male")
-
-# add pop info to the fam data
-for (data in datasets){
-  fam = read.table(paste0("filter/", data, "_raw.fam"))
-  fam$V1 = sapply(fam$V2, function(x){ind237[ind237$SampleID == x, "Population"] })
-  write.table(fam, paste0("filter/", data, ".fam"), sep = " ", row.names = F, col.names = F, quote = F)
-}
-                             
-pop.lg3 = c("DEN-NOR", "GER-RUE", "SWE-FIS", "POL-GDY")
-pop.lg12 = c("FIN-HEL", "FIN-HAM", "FIN-KIV", "FIN-SEI", "FIN-TVA", "SWE-BOL", "SWE-GOT", "RUS-LEV", "POL-GDY")
-
-pop.order = c("DEN-NOR", "SWE-FIS", "GER-RUE", "POL-GDY", "SWE-GOT", "FIN-HEL", "FIN-SEI", "FIN-TVA", "SWE-BOL", "FIN-HAM", "FIN-KIV", "RUS-LEV")
-
-for (i in 1:3){
-  prefix = paste0("./filter/", datasets[i])
-  f2_blocks = f2_from_geno(pref=prefix)
-  f3_we = f3(f2_blocks, pop1=pop12, pop2=pop.lg12, pop3=pop.lg3)
-  write.csv(f3_we, paste0(type[i], "_f3we_raw.csv"), row.names = F)
-  
-  summary = NULL
-  for (p in pop12){
-    data = f3_we[f3_we$pop1 == p & !(is.na(f3_we$p)), ]
-    data = data[data$p <= 0.05, ]
-    summary = rbind(summary, c(p, mean(data$est)))
-  }
-  summary = as.data.frame(summary)
-  names(summary) = c("pop1", "f3_wesig")
-  write.csv(summary, paste0(type[i], "_f3sig.csv"), row.names = F)
-  assign(paste0(type[i], "_f3"), summary)
-}
-
-f3_summary = merge(male_f3, female_f3, by="pop1", suffixes = c(".male", ".female"))
-f3_summary = merge(f3_summary, all_f3, by="pop1")
-
-plot = ggplot(f3_summary) + 
-  geom_vline(xintercept = 0, color="#ad2020") +
-  geom_point(aes(x=as.numeric(f3_wesig), y=pop1), shape=4, color="black", size=3, stroke=1, alpha=0.7) + 
-  geom_point(aes(x=as.numeric(f3_wesig.male), y=pop1), shape=17, color="royalblue", size=3, alpha=0.7) + 
-  geom_point(aes(x=as.numeric(f3_wesig.female), y=pop1), shape=16, color="indianred3", size=3, alpha=0.7) +
-  theme_bw() +  ylim(breaks=pop.order) +
-  labs(x="mean f3 (significant estimates)", y="admixed population")
-
-png("f3sig.png", width = 5, height = 5, units = "in", res=600)
-pdf("f3sig.pdf", width = 5, height = 5)
-plot
-dev.off()
