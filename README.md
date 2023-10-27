@@ -1,2 +1,2 @@
 # SexChromosome_ninespined_stickleback
-This 
+This repository stores the scripts and codes used in the study of sex chromosomes in nine-spined stickleback lineages. In this study, we first identified sex chromosomes and the sex-determining region (SDR) in the Western European lineage (WL) using four family crosses. Second, we identified the genetic sex of 887 wild-caught individuals and characterized sex chromosome diversity across 45 populations. Lastly, we focused on the marine populations in the Baltic Sea hybrid zone where a sex chromosome turnover was indicated. 
