@@ -311,6 +311,8 @@ p2 = ggarrange(ncol=2, nrow=2, labels = c("E)", "F)", "G)", "H)"),
           LG12SDR_pop3_PCA_pop.plot + theme(legend.position = "none"), LG12SDR_pop3_map.plot)
 ggarrange(nrow=2, ncol=1, heights = c(1, 1.5), p1, p2)
 
+
+
 ########################### the phylogeny dataset of LG3 homozygotes ###############################
 ## select 109 samples representing outgroups and LG3 homozygotes 
 ind=tree109
@@ -321,3 +323,111 @@ bcftools view -S ${ind}.list ../../v7/v7.LG${chr}.vcf.gz --regions LG3:17260000-
 /projappl/project_2006364/vcf2phylip-master/vcf2phylip.py --input tree109_LG3sex_a1m3.vcf.gz
 
 raxmlHPC-PTHREADS -T 24 -f a -m GTRGAMMA -p 109 -x 109 -# 1000 -s tree109_LG3sex_a1m3.min4.phy -n tree109_LG3sex_a1m3
+
+
+
+############################ detect putative structural variant using BreakDancer ################################## 
+## BreakDancer (https://github.com/genome/breakdancer)
+## only focus on LG3
+samtools view -h ${ind}_markdup.bam LG3 | samtools view -o ${ind}_LG3.bam
+
+## generate configuration using all individuals in each dataset and/or sex
+perl breakdancer_perl/bam2cfg.pl -g ${ind1}_LG3.bam ${ind2}_LG3.bam > ${mydata}_${sex}_config
+
+### R script to filter out read groups of low quality 
+conf_ReadIn_QualityCheck = function(conf, ...){
+  low_quality = NULL
+  for (i in 1:nrow(conf)){
+    data = conf[i,]
+    
+    ## quality control 3: the coefficient of variation of the insert size should be < 0.2 or 0.3; most of my data are >0.3 but < 0.4
+    std = gsub("std:", "", data$std)
+    mean = gsub("mean:", "", data$mean)
+    cof.var = as.numeric(std)/as.numeric(mean)
+    if (cof.var > 0.4) {
+      print(paste0(data$readgroup, ":  cof.var", cof.var))
+      low_quality = c(low_quality, i)}
+    
+    ## quality control 4: percentage of inter-chr read pairs (tag 32) should be <3%
+    flag = gsub("flag:", "", data$flag)
+    flag = unlist(strsplit(flag, ")", fixed = T))
+    t32 = gsub("32(", "", flag[grep("32(", flag, fixed=T)], fixed = T)
+    if (length(t32) > 0){
+      if (!is.na(t32)) {
+        t32 = gsub("%", "", t32, fixed = T)
+        if( as.numeric(t32) > 4 ) {
+          print(paste0(data$readgroup, ":  t32=", t32))
+          low_quality = c(low_quality, i)
+        }}}
+  }
+  return(low_quality)
+}
+# filter by quality 
+for (sex in c("Female", "Male")){
+  print(sex)
+  conf = read.table(paste0(path, mydata, "_", sex, "_config"), sep="\t")
+  names(conf) = c("readgroup", "platform", "map", "readlen", "lib", "num", "lower", "upper", "mean", "std", "SWnormality", "flag", "exe")
+  low_quality = conf_ReadIn_QualityCheck(conf)
+  
+  ## exclude the low-quality readgroups
+  if(is.null(low_quality)){conf_csc = conf}
+  if(!is.null(low_quality)){conf_csc = conf[-low_quality,]}
+  write.table(conf_csc, paste0(mydata, "_", sex, "_config_filter"), sep="\t", quote = F, row.names = F, col.names = F)
+}
+#### end of R script 
+
+## more quality check in unix
+cat ${mydata}_${sex}_config_filter | awk '{print $1}' | sed 's/readgroup://g; s/\..*//g' > ${sex}.list
+c1=$(samtools view -H ./${mydata}/${ind}_LG3.bam | grep -c @RG)
+c2=$(grep -c ./${mydata}/${ind}_LG3.bam ${mydata}_${sex}_config_csc)
+if [[ $c1 < $c2 ]]
+then
+echo $ind
+fi
+done < ${sex}.list
+done
+## no output
+grep -cw readgroup:NA ${mydata}_*_config_csc  
+## 0 
+
+### run BreakDancer using the filtered configure file 
+breakdancer/build/bin/breakdancer-max -a ${mydata}_${sex}_config_filter > ${mydata}_${sex}_SV
+
+### R scripts for filtering and plotting results  
+SV = read.table(paste0(mydata, "_", sex, "_SV"))
+names(SV) = c("Chr1",	"Pos1",	"Orientation1", "Chr2",	"Pos2",	"Orientation2",	"Type",	"Size",	"Score",	"num_Reads",	"num_Reads_lib") 
+  
+## filter SV by confidence score and supporting read count
+SV.high = SV[SV$Score >= 99 & SV$num_Reads > median(SV$num_Reads), ]
+SV.high$num_ind = 0
+SV.high$per_pop = 0
+  
+for (i in 1:nrow(SV.high)){
+    data = SV.high[i,]
+    samples = unlist(strsplit(data$num_Reads_lib, split=":", fix=T))
+    SV.high[i, "num_ind"] = length(samples)
+    
+    samples.sort = NULL
+    for (j in 1:length(samples)) {
+      samples.sort = rbind(samples.sort, unlist(strsplit(unlist(strsplit(samples[j], ",", fixed = T))[1], "|", fixed=T)))}
+    samples.sort = as.data.frame(samples.sort)
+    names(samples.sort) = c("SampleID", "number_reads")
+    samples.sort = merge(samples.sort, sif[, c("SampleID", "Population", "genetic_sex" )], by="SampleID")
+    per_pop = NULL
+    for (p in unique(sif$Population)){
+        per_pop = c(per_pop, paste0(nrow(samples.sort[samples.sort$Population == p, ]), "-", p))
+    }
+    SV.high[i, "per_pop"] = paste0(per_pop, collapse = "; ")
+  }
+  
+  SV.high.sdr = SV.high[SV.high$Pos1 > 17200000 & SV.high$Pos1 < 17400000 &
+                          SV.high$Pos2 > 17200000 & SV.high$Pos2 < 17400000,]
+  SV.high.sdr = SV.high.sdr[order(SV.high.sdr$num_Reads, decreasing = T), ]
+  SV.high.sdr$ID = 1:nrow(SV.high.sdr)
+  
+  ggplot(SV.high.sdr) + geom_segment(aes(x = Pos1, y = ID, xend = Pos2, yend = ID, colour = Type), linewidth=1) +
+    scale_color_manual(values=my.sv.color, labels=c("DEL"="Deletion", "INS"="Insertion", "INV"="Inversion", "ITX"="Intra-chromosomal translocations"), name="SV type") +
+    scale_x_continuous(limits = c(17260000, 17340000), breaks = c(17260000, 17340000), labels = c("17260", "17340")) +
+    labs(y="", x="LG3 position (kbp)", title=paste0(mydata, "_", sex)) +
+    theme_bw() + theme(axis.text.y=element_blank(), axis.ticks.y = element_blank())
+    
