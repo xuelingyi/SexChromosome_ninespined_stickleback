@@ -95,7 +95,7 @@ ggarrange(ncol=1, nrow=2, LG3sex_het_plot, LG12sex_het_plot)
 
 ###### PCA of EU pops sexed by each SDR ######
 for (chr in c(12, 3)){
-  title = ifelse(chr==3, "LG3:17260000-17340000", "LG12:1-16900000")
+  title = ifelse(chr==3, "LG3:17.26-17.34 Mb", "LG12:1-16.9 Mb")
   data = paste0("Feng887_LG", chr, "sex_a1m3_LG", chr, "pop")
   pca = read.table(paste0(data, ".eigenvec"))
   miss = read.table(paste0(data, ".imiss"), header=1)
@@ -121,17 +121,17 @@ for (chr in c(12, 3)){
                 y=paste0("PC2: ", round(eig[2,1]/sum(eig)*100),"%"),
                 title=title) + theme_bw() +
            theme(legend.background = element_rect(fill = "transparent")))
-           
+
   if (chr==12) {
+    pca$Population_plot = pca$Population
+    pca[!(pca$Population_plot %in% c("POL-GDY", "GBR-GRO", "SCO-HAR")), "Population_plot"] = "EL"
+    pca$Population_plot = factor(pca$Population_plot, levels=c("EL", "POL-GDY"))
+    pca = pca[order(pca$Population_plot),]
     assign(paste0("LG", chr, "sex_pca.plot"), ggplot() +
-             geom_point(data=pca[pca$Population != "POL-GDY",], 
-                        aes(x=PC1, y=PC2, fill=sex), size=2, stroke=0.3, alpha=0.5, shape=21) +
-             geom_text(data=pca[pca$Population == "POL-GDY" & pca$sex_region != "LG12",], 
-                       aes(x=PC1 + 0.005, y=PC2, color=sex, label=Population), size=2) +
-             geom_text(data=pca[pca$Population == "POL-GDY" & pca$sex_region == "LG12",], 
-                       aes(x=PC1, y=PC2, color=sex, label=ID), size=2) +
-             scale_fill_manual(values = c("Female"="indianred", "Male"="royalblue")) +
-             scale_color_manual(values = c("Female"="indianred", "Male"="royalblue"), guide="none") +
+             geom_point(data=pca, aes(x=PC1, y=PC2, color=sex, shape=Population_plot), 
+                        size=2, stroke=0.8, alpha=0.5) +
+             scale_color_manual(values = c("Female"="indianred", "Male"="royalblue")) +
+             scale_shape_manual(values = c("EL"=16, "POL-GDY"=5)) +
              geom_hline(yintercept=0, color="grey60", linewidth=0.1) + 
              geom_vline(xintercept=0, color="grey60", linewidth=0.1) +
              labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), 
@@ -140,18 +140,19 @@ for (chr in c(12, 3)){
              theme(legend.background = element_rect(fill = "transparent")))
   }
   if (chr==3) {
+    pca$Population_plot = pca$Population
+    pca[!(pca$Population_plot %in% c("POL-GDY", "GBR-GRO", "SCO-HAR")), "Population_plot"] = "WL"
+    pca$Population_plot = factor(pca$Population_plot, levels=c("WL", "GBR-GRO", "SCO-HAR", "POL-GDY"))
+    pca[pca$Population %in% c("GBR-GRO", "SCO-HAR") & pca$sex == "Female", "sex"] = "LG3-homozygote"
+    pca[pca$Population %in% c("GBR-GRO", "SCO-HAR") & pca$sex == "Male", "sex"] = "LG3-heterozygote"
+    pca = pca[order(pca$Population_plot),]
     assign(paste0("LG", chr, "sex_pca.plot"), ggplot() +
-             geom_point(data=pca[pca$Population != "POL-GDY",], 
-                        aes(x=PC1, y=PC2, fill=sex), size=2, stroke=0.3, alpha=0.5, shape=21) +
-             geom_text(data=pca[pca$Population == "POL-GDY" & pca$sex == "Male" &
-                                  pca$ID != "POL-GDY-16",], 
-                       aes(x=PC1, y=PC2, color=sex, label=Population), size=2) +
-             geom_text(data=pca[pca$Population == "POL-GDY" & pca$sex == "Female",], 
-                       aes(x=PC1 - 0.02, y=PC2, color=sex, label=ID), size=2) +
-             geom_text(data=pca[pca$ID == "POL-GDY-16",], 
-                       aes(x=PC1 - 0.02, y=PC2, color=sex, label=ID), size=2) +
-             scale_fill_manual(values = c("Female"="indianred", "Male"="royalblue")) +
-             scale_color_manual(values = c("Female"="indianred", "Male"="royalblue"), guide="none") +
+             geom_point(data=pca, aes(x=PC1, y=PC2, color=sex, shape=Population_plot), 
+                        size=2, stroke=0.8, alpha=0.5) +
+             scale_color_manual(values = c("Female"="indianred", "Male"="royalblue",
+                                           "LG3-homozygote" = "#440000", "LG3-heterozygote"="#031740")) +
+             scale_shape_manual(values = c("WL"=16, "POL-GDY"=5, 
+                                           "GBR-GRO"=3, "SCO-HAR"=8)) +
              geom_hline(yintercept=0, color="grey60", linewidth=0.1) + 
              geom_vline(xintercept=0, color="grey60", linewidth=0.1) +
              labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), 
@@ -160,65 +161,41 @@ for (chr in c(12, 3)){
              theme(legend.background = element_rect(fill = "transparent")))
   }
 }
-ggarrange(ncol=1, nrow=2, heights = c(1, 1.5),
-          ggarrange(ncol=2, nrow=1, labels = c("A)", "B)"), LG3sex_miss.plot, LG12sex_miss.plot),
-          ggarrange(ncol=2, nrow=1, widths = c(1, 1.3), labels = c("C)", "D)"), LG3sex_pop.plot, LG12sex_pop.plot))
 
-###### LG3 SDR indicates an inversion ######
-chr=3  
-my3pop_colo = c("SCO-HAR*" = "#fdae61", "GBR-GRO*" = "#0fa507")
-mypop = ggplot() +
-  geom_point(data=pca, aes(x=PC1, y=PC2), size=2, stroke=0.3, alpha=0.5, fill="grey50", shape=21) +
-  geom_point(data=pca[pca$Population %in% c("GBR-GRO*", "SCO-HAR*"), ], 
-             aes(x=PC1, y=PC2, fill=Population), size=2, stroke=0.3, shape=21) +
-  scale_fill_manual(values = my3pop_colo) +
-  geom_hline(yintercept=0, color="grey60", linewidth=0.1) + 
-  geom_vline(xintercept=0, color="grey60", linewidth=0.1) +
-  labs(x=paste0("PC1: ", round(eig[1,1]/sum(eig)*100), "%"), 
-       y=paste0("PC2: ", round(eig[2,1]/sum(eig)*100),"%"),
-       title=title) +
-  theme_bw() + theme(legend.background = element_rect(fill = "transparent"))
-
-## additional evidence for an inversion
+## following above, pca here is for LG3 WL
 het = read.table("Feng887_LG3sex_a1m3_LG3pop.het", header=1)
 lg3_data = merge(pca, het, by.x = "ID", by.y = "INDV")
 lg3_data$O_HET = (lg3_data$N_SITES - lg3_data$O.HOM.) / lg3_data$N_SITES
-# center and fold PC1
+
+mean(lg3_data[lg3_data$sex == "Male" & lg3_data$Population != "POL-GDY", "PC1"])
+#[1] -0.0589662
+## center heterozygotes around zero
 lg3_data$PC1 = lg3_data$PC1 + 0.0589662
+## fold
 lg3_data$PC1 = abs(lg3_data$PC1)
-p3 = ggplot() + 
-  geom_point(data = lg3_data, aes(x=PC1, y=O_HET), color="grey60", alpha=0.5) +
-  geom_point(data = lg3_data[lg3_data$Population %in% c("SCO-HAR*", "GBR-GRO*"),],aes(x=PC1, y=O_HET, fill=Population), shape=21, stroke=0.3) +
-  scale_fill_manual(values = my3pop_colo) +
-  labs(y="observed heterozygosity", title="", x="PC1 (centered and folded)")
 
-## remove the UK populations
-p2.data = lg3_data[!(lg3_data$Population %in% c("SCO-HAR*", "GBR-GRO*")), ]
-cor.test(x=p2.data$PC1, y=p2.data$O_HET, method = "pearson", alternative = "two.sided")
-p2.2 = ggplot(p2.data[order(p2.data$sex),], aes(x=PC1, y=O_HET)) + 
-  geom_point(aes(color=sex), alpha=0.6) +
-  scale_color_manual(values=c("Female"="indianred", "Male"="royalblue")) +
-  geom_smooth(method='lm', color="grey30", lwd=0.5, alpha=0.4) +
+cor.test(x=lg3_data$PC1, y=lg3_data$O_HET, method = "pearson", alternative = "two.sided")
+
+lg3_data = lg3_data[order(lg3_data$Population_plot, lg3_data$sex),]
+p3 = ggplot(lg3_data, aes(x=PC1, y=O_HET)) + 
+  geom_smooth(method='lm', color="grey50", fill="grey85", lwd=0.3, alpha=0.5) +
+  geom_point(aes(color=sex, shape=Population_plot), size=2, stroke=0.8, alpha=0.5) +
+  #scale_color_manual(values=c("Female"="indianred", "Male"="royalblue", "unknown"="grey30")) +
+  scale_color_manual(values = c("Female"="indianred", "Male"="royalblue",
+                                "LG3-homozygote" = "#440000", "LG3-heterozygote"="#031740")) +
+  scale_shape_manual(values = c("WL"=16, "POL-GDY"=5, "GBR-GRO"=3, "SCO-HAR"=8)) +
   geom_text(x=0.1, y=0.55, label="r=-0.96\np-value < 2.2e-16") +
-  labs(y="observed heterozygosity", title = "", x="PC1 (centered and folded)")
+  labs(y="observed heterozygosity", title = title, x="PC1 (centered and folded)") +
+  theme_bw() + theme(legend.background = element_rect(fill = "transparent"))
 
-## plot
-row1 = ggarrange(ncol=3, nrow=1, 
-                 LG12sex_pca.plot + geom_text(aes(x=-0.02, y=0), label="XX", size=4) +
-                   geom_text(aes(x=0.03, y=0), label="XY", size=4) + 
-                   theme(legend.position = "none", title = element_text(size=10)), 
-                 LG3sex_pca.plot + geom_text(aes(x=0.01, y=0.1), label="XX", size=4) +
-                   geom_text(aes(x=-0.05, y=0.1), label="XY", size=4) + 
-                   geom_text(aes(x=-0.17, y=0.04), label="Y'Y'?", size=4) + 
-                   theme(legend.position = "none", title = element_text(size=10)),
-                 my3pop + theme(legend.position= "none", title = element_text(size=10)),
-                 labels = c("A)", "B)", "C)"))
-row2 = ggarrange(ncol=2, nrow=1, 
-                 p3 + theme(title = element_text(size=10)),
-                 p2.2 + theme(title = element_text(size=10)), 
-                 widths = c(1, 1), labels = c("D)", "E)"))
-ggarrange(ncol=1, nrow=2, row1, row2)
-
+ggarrange(ncol=3, nrow=1, widths = c(0.9, 1,1),
+          LG12sex_pca.plot + 
+            geom_text(aes(x=-0.02, y=0), label="XX", size=4) +
+            geom_text(aes(x=0.03, y=0), label="XY", size=4),
+          LG3sex_pca.plot + geom_text(aes(x=0.01, y=0.1), label="XX", size=4) +
+            geom_text(aes(x=-0.05, y=0.1), label="XY", size=4) + 
+            geom_text(aes(x=-0.17, y=0.04), label="LG3-Y'Y'", size=4),
+          p3, labels = c("A)", "B)", "C)"))
 
 ########################### PCA of EU pops sexed by the other SDR ###############################
 module load samtools
